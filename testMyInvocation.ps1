@@ -1,1 +1,0 @@
-$MyInvocation | Get-Member | Get-TypeData |Format-List properties *

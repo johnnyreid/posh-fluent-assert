@@ -1,5 +1,5 @@
 # using module '..\Modules\Assert\Assert.psm1'
-Import-Module ".\Assert.psm1" -Force
+Import-Module ".\Assert.psd1" -Force
 
 InModuleScope "Assert"{
     Describe "Method: `"eq`""{
@@ -24,7 +24,7 @@ InModuleScope "Assert"{
             It "Should throw an AssertionFailedException with correct message - not equal"{
                 {
                     [Assert]::new($value1).eq($value2)
-                } | Should throw "Value `"$value1`" does not equal expected value `"$value2`"."
+                } | Should throw "Value `"$value1`" does not equal expected value `"$value2`"."@()
             }
         }
         Context ": Different types, different values"{
@@ -924,6 +924,30 @@ InModuleScope "Assert"{
         }
     }
     Describe "Method: `"samAccountName`""{
+
+        Context ": Provided an array of strings, one of which has a string value >20 characters"{
+            $value1 = @("jcitiz","something","stringstringstringstringstringstringstringstringstringstring","blah")
+            It "Should throw an exception"{
+                {[Assert]::new($value1).all().samAccountName()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).all().samAccountName()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - invalid samAccountName"{
+                {
+                    [Assert]::new($value1).all().samAccountName()
+                } | Should throw "Value `"stringstringstringstringstringstringstringstringstringstring`" was expected to be a valid samAccountName."
+            }
+        }
         Context ": Provided string value >20 characters"{
             $value1 = "stringstringstringstringstringstringstringstringstringstring"
             It "Should throw an exception"{
@@ -1040,7 +1064,7 @@ InModuleScope "Assert"{
             It "Should throw an AssertionFailedException with correct message - invalid string"{
                 {
                     [Assert]::new($value1).regex($regex)
-                } | Should throw "Value `"$value1`" expected to be a string, type `"int`" given."
+                } | Should throw "Value `"$value1`" expected to be a string, type `"System.Int32`" given."
             }
         }
         Context ": Provided matching regex"{

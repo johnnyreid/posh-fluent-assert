@@ -82,94 +82,52 @@ Class Assert
     static $INFO                        = 'info'
     static $DEBUG                       = 'debug'
 
-    Hidden [bool]   $nullOr             = $false
+    Hidden [bool]   $pNullOr             = $false
 
-    Hidden [bool]   $emptyOr            = $false
+    Hidden [bool]   $pEmptyOr            = $false
 
-    Hidden          $value              = $null
+    Hidden          $pValue              = $null
 
-    Hidden [bool]   $all                = $false
+    Hidden [bool]   $pAll                = $false
 
-    Hidden [string] $fieldName          = ''
+    Hidden [string] $pFieldName          = ''
 
-    Hidden [string] $propertyPath       = ''                #can include a full propertypath if you desire but this is generally used for fieldName
+    Hidden [string] $pPropertyPath       = ''                #can include a full propertypath if you desire but this is generally used for fieldName
 
-    Hidden [string] $level              = 'critical'
+    Hidden [string] $pLevel              = 'critical'
 
-    Hidden [int]    $overrideCode       = $null
+    Hidden [int]    $pOverrideCode       = $null
 
-    Hidden [string] $overrideError      = ''
+    Hidden [string] $pOverrideError      = ''
 
     # Invocation location details
-    Hidden [string] $file               = ''
+    Hidden [string] $pFile               = ''
 
-    Hidden [int]    $line               = $null
-
-    $exceptionClass = [AssertionFailedException]::class
-
+    Hidden [int]    $pLine               = $null
 
 
     #constructor and overloads
     Assert($value)
     {
-        $this.Assert($value, '', 0, '', [Assert]::WARNING)
+        $this.pValue            = $value
     }
     Assert($value, [string] $fieldName)
     {
-        $this.Assert($value, $fieldName, 0, '', [Assert]::WARNING)
-    }
-    Assert($value, [string] $fieldName, [int] $code)
-    {
-        $this.Assert($value, $fieldName, $code, '', [Assert]::WARNING)
-    }
-    Assert($value, [string] $fieldName, [int] $code, [string] $overrideError)
-    {
-        $this.Assert($value, $fieldName, $code, $overrideError, [Assert]::WARNING)
-    }
-    Assert($value, [string] $fieldName, [int] $code, [string] $overrideError, [string] $level)
-    {
-        if ( $fieldName )
-        {
-            $this.fieldName($fieldName)
-        }
-        if ( $code )
-        {
-            $this.code($code)
-        }
-        if ( $error )
-        {
-            $this.error($error)
-        }
-        if ( $level )
-        {
-            $this.level($level)
-        }
+        $this.pValue            = $value
+        $this.pFieldName        = $fieldName
     }
 
     static [Assert] that($value)
     {
-
         return [Assert]::that($value, '', 0, '', [Assert]::WARNING)
     }
     static [Assert] that($value, [string] $fieldName)
     {
-
         return [Assert]::that($value, $fieldName, 0, '', [Assert]::WARNING)
-    }
-    static [Assert] that($value, [string] $fieldName, [int] $code, [string] $overrideError, [string] $level)
-    {
-
-        return [Assert]::that($value, $fieldName, $code, '', [Assert]::WARNING)
     }
     static [Assert] that($value, [string] $fieldName, [int] $code, [string] $overrideError)
     {
-
         return [Assert]::that($value, $fieldName, $code, $overrideError, [Assert]::WARNING)
-    }
-    static [Assert] that($value, [string] $fieldName, [int] $code, [string] $overrideError, [string] $level)
-    {
-
-        return [Assert]::that($value, $fieldName, $code, $overrideError, $level)
     }
     static [Assert] that($value, [string] $fieldName, [int] $code, [string] $overrideError, [string] $level)
     {
@@ -202,7 +160,6 @@ Class Assert
     #>
     [Assert] reset($value)
     {
-
         return $this.all($false).nullOr($false).value($value)
     }
 
@@ -213,7 +170,7 @@ Class Assert
     #>
     [Assert] value($value)
     {
-        $this.value = $value
+        $this.pValue = $value
 
         return $this
     }
@@ -225,7 +182,7 @@ Class Assert
     #>
     [Assert] nullOr([bool] $nullOr)
     {
-        $this.nullOr = $nullOr
+        $this.pNullOr = $nullOr
 
         return $this
     }
@@ -237,7 +194,7 @@ Class Assert
     #>
     [Assert] emptyOr([bool] $emptyOr)
     {
-        $this.emptyOr = $emptyOr
+        $this.pEmptyOr = $emptyOr
 
         return $this
     }
@@ -247,9 +204,14 @@ Class Assert
     @param bool $all
     @return Assert
     #>
+    [Assert] all()
+    {
+        return $this.all($true)
+    }
+
     [Assert] all([bool] $all)
     {
-        $this.all = $all
+        $this.pAll = $all
 
         return $this
     }
@@ -273,28 +235,25 @@ Class Assert
     return AssertionFailedException
     # Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
     #>
-    [AssertionFailedException] createException([string] $message, [int] $code, [string] $fieldName) 
+    [AssertionFailedException] createException([string] $message, [string] $fieldName, [int] $code)
     {
-        return $this.createException($message, $code, $fieldName, [array]::new(), '')
+        return $this.createException($message, $fieldName, $code, @())
     }
-    
-    [AssertionFailedException] createException([string] $message, [int] $code, [string] $fieldName, [array] $constraints) 
+    [AssertionFailedException] createException([string] $message, [string] $fieldName, [int] $code, [array] $constraints)
     {
-        return $this.createException($message, $code, $fieldName, $constraints, '')
-    }
+        $errcode        = $this.pOverrideCode
+        $errFieldName   = $fieldName
 
-    [AssertionFailedException] createException([string] $message, [int] $code, [string] $fieldName, [array] $constraints, [string] $level)
-    {
-        if ( [string]::IsNullOrEmpty($fieldName) )
+        if ( ($errcode -eq 0) -or ($errcode -eq $null) )        #override is NOT set at method-level
         {
-            $fieldName = $this.fieldName
+            $errcode = $code
         }
-        if ( [string]::IsNullOrEmpty($level) )
+        if ( [string]::IsNullOrEmpty($errFieldName) )   #override is set at method level
         {
-            $level = $this.level
+            $errFieldName = $this.pFieldName
         }
 
-        return [AssertionFailedException]::new($message, $code, $fieldName, $this.value, $constraints, $level, $this.file, $this.line)
+        return [AssertionFailedException]::new($message, $errcode, $errFieldName, $this.pValue, $constraints, $this.pLevel, $this.pPropertyPath, $this.pFile, $this.pLine)
     }
 
     <#
@@ -304,7 +263,7 @@ Class Assert
     #>
     [Assert] code([int] $code)
     {
-        $this.code = $code
+        $this.pCode = $code
 
         return $this
     }
@@ -316,7 +275,7 @@ Class Assert
     #>
     [Assert] fieldName([string] $fieldName)
     {
-        $this.fieldName = $fieldName
+        $this.pFieldName = $fieldName
 
         return $this
     }
@@ -328,37 +287,39 @@ Class Assert
     #>
     [Assert] level([string] $level)
     {
-        $this.level = $level
+        $this.pLevel = $level
 
         return $this
     }
 
     <#
+    .SYNOPSIS
+    Set an overrride error message.
     .NOTES
     @param string $overrideError
     @return Assert
     #>
     [Assert] overrideError([string] $overrideError)
     {
-        $this.overrideError = $overrideError
+        $this.pOverrideError = $overrideError
         
         return $this
     }
 
     <#
-    .NOTES
+    .SYNOPSIS
      User controlled way to define a sub-property causing
      the failure of a currently asserted objects.
     
      Useful to transport information about the nature of the error
      back to higher layers.
-    
+    .NOTES
      @param string $propertyPath
      @return Assert
     #>
     [Assert] propertyPath([string] $propertyPath)
     {
-        $this.propertyPath = $propertyPath
+        $this.pPropertyPath = $propertyPath
 
         return $this
     }
@@ -370,7 +331,7 @@ Class Assert
     #>
     [Assert] file([string] $file)
     {
-        $this.file = $file
+        $this.pFile = $file
 
         return $this
     }
@@ -382,39 +343,91 @@ Class Assert
     #>
     [Assert] line([int] $line)
     {
-        $this.line = $line
+        $this.pLine = $line
 
         return $this
     }
+<#
+     * Assert that value is an array or a traversable object.
+     *
+     * @param string $message
+     * @param string $fieldName
+     * @return Assert
+     * @throws AssertionFailedException
+     #>
+     [Assert] isTraversable()
+     {
+         return $this.isTraversable('', '')
+     }
+     [Assert] isTraversable([string] $message)
+     {
+         return $this.isTraversable($message, '')
+     }
+    [Assert] isTraversable([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("isTraversable", $args) )
+        {
+            return $this
+        }
+        if ( (-not ($this.pValue -is [array])) -and ((-not($this.pValue -is [System.Collections.IEnumerable])) -or ($this.pValue -is [string])) )
+        {
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = $this.pOverrideError
+            }
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = 'Value "{0}" is not an array and does not implement Traversable.' -f $this.stringify($this.pValue)
+            }
 
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_TRAVERSABLE)
+        }
+
+        return $this
+    }
     <#
      @param $func
      @param $args
      @return bool
      @throws AssertionFailedException
     #>
-    hidden [bool] doAllOrNullOr()
+    hidden [bool] doAllOrNullOr([string] $methodName, $MethodParameters)
     {
-        # TODO: FIX THIS METHOD
-        # if ( $this->nullOr && is_null($this->value) )
-        # {
-        #     return true;
-        # }
-        # if ( $this->emptyOr && empty($this->value) )
-        # {
-        #     return true;
-        # }
-        # if ( $this->all && (new Assert($this->value))->setExceptionClass($this->exceptionClass)->isTraversable() )
-        # {
-        #     foreach ( $this->value as $idx => $value )
-        #     {
-        #         $object = (new Assert($value))->setExceptionClass($this->exceptionClass);
-        #         call_user_func_array([$object, $func], $args);
-        #     }
-        #     return true;
-        # }
+        if ( ($this.pNullOr -eq $true) -and ($this.pValue -eq $null) )
+        {
+            return $true
+        }
+        if ( ($this.pEmptyOr -eq $true) -and ([string]::IsNullOrEmpty($this.pValue) -eq $true) )
+        {
+            return $true
+        }
 
-        # return ( $this->nullOr && is_null($this->value) ) || ( $this->emptyOr && empty($this->value) ) ? true : false;
+        if ( ($this.pAll -eq $true) -and ($this.canBeTraversed() -eq $true) )
+        {
+            foreach ( $value in $this.pValue )
+            {
+                $object = [Assert]::new($value)
+                try
+                {
+                    $object.$methodName.Invoke($MethodParameters)
+                }
+                catch 
+                {
+                    # get the base AssertionFailedException, if present, and recreate it from this invocation.
+                    # This is required due to invoke of methods using reflection
+                    # which will raise a System.Management.Automation.MethodInvocationException
+                    # because of the invoked method throwing
+                    if ($_.Exception.GetBaseException() -is [AssertionFailedException])
+                    {
+                        [AssertionFailedException] $e = [AssertionFailedException] $_.Exception.GetBaseException()
+                        throw $this.createException($e.getMessage(), $e.getFieldName(), $e.getCode(), $e.getConstraints())
+                    }
+                 }
+            }
+
+            return $true
+        }
+
         return $false
     }
 
@@ -441,32 +454,24 @@ Class Assert
     }
     [Assert] eq($value2, [string] $message, [string] $fieldName)
     {
-        if ( $this.doAllOrNullOr() )
+        if ( $this.doAllOrNullOr("eq", $args) )
         {
             return $this
         }
-
-        if ( $this.value -ceq $value2 )
+        if ( $this.pValue -ceq $value2 )
         {
-
             return $this
-            Exit
-        }
-
-        if ( [string]::IsNullOrEmpty($message) )
-        {
-            $message = $this.overrideError
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" does not equal expected value `"$($value2.tostring())`"."
+            $message = $this.pOverrideError
         }
-        if ( -not ($returnOverrideCode) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $returnOverrideCode = [ERRORS]::INVALID_EQ
+            $message = 'Value "{0}" does not equal expected value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_EQ)
     }
 
     <# 
@@ -484,30 +489,30 @@ Class Assert
     #>
     [Assert] greaterThan($value2)
     {
-        return $this.greaterThan($value2, $null, $null)
+        return $this.greaterThan($value2, '', '')
     }
     [Assert] greaterThan($value2, [string] $message)
     {
-        return $this.greaterThan($value2, [string] $message, '')
+        return $this.greaterThan($value2, $message, '')
     }
-    [Assert] greaterThan($value2, $message, [string] $fieldName)
+    [Assert] greaterThan($value2, [string] $message, [string] $fieldName)
     {
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ( $this.value -cgt $value2 ) )
+        if ( $this.doAllOrNullOr("greaterThan", $args) )
         {
-            if ( -not ($message) )
+            return $this
+        }
+        if ( -not ( $this.pValue -cgt $value2 ) )
+        {
+            if ( [string]::IsNullOrEmpty($message) )
             {
                 $message = $this.pOverrideError
             }
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = "Value `"$($this.value.ToString())`" is not greater than value `"$($value2.tostring())`"."
+                $message = 'Value "{0}" is not greater than value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
             }
-            if ( -not ($returnOverrideCode) )
-            {
-                $returnOverrideCode = [ERRORS]::INVALID_GREATER_THAN
-            }
-            throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_GREATER_THAN)
         }
         return $this;
     }
@@ -527,30 +532,30 @@ Class Assert
     #>
     [Assert] greaterThanOrEq($value2)
     {
-        return $this.greaterThanOrEq($value2, $null, $null)
+        return $this.greaterThanOrEq($value2, '', '')
     }
     [Assert] greaterThanOrEq($value2, [string] $message)
     {
-        return $this.greaterThanOrEq($value2, [string] $message, '')
+        return $this.greaterThanOrEq($value2, $message, '')
     }
-    [Assert] greaterThanOrEq($value2, $message, [string] $fieldName)
+    [Assert] greaterThanOrEq($value2, [string] $message, [string] $fieldName)
     {
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ( $this.value -cge $value2 ) )
+        if ( $this.doAllOrNullOr("greaterThanOrEq", $args) )
         {
-            if ( -not ($message) )
+            return $this
+        }
+        if ( -not ( $this.pValue -cge $value2 ) )
+        {
+            if ( [string]::IsNullOrEmpty($message) )
             {
                 $message = $this.pOverrideError
             }
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = "Value `"$($this.value.ToString())`" is not greater than or equal to value `"$($value2.tostring())`"."
+                $message = 'Value "{0}" is not greater than or equal to value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
             }
-            if ( -not ($returnOverrideCode) )
-            {
-                $returnOverrideCode = [ERRORS]::INVALID_GREATER_THAN_OR_EQ
-            }
-            throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_GREATER_THAN_OR_EQ)
         }
         return $this;
     }
@@ -570,30 +575,30 @@ Class Assert
     #>
     [Assert] lessThan($value2)
     {
-        return $this.lessThan($value2, $null, $null)
+        return $this.lessThan($value2, '', '')
     }
     [Assert] lessThan($value2, [string] $message)
     {
-        return $this.lessThan($value2, [string] $message, '')
+        return $this.lessThan($value2, $message, '')
     }
-    [Assert] lessThan($value2, $message, [string] $fieldName)
+    [Assert] lessThan($value2, [string] $message, [string] $fieldName)
     {
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ( $this.value -clt $value2 ) )
+        if ( $this.doAllOrNullOr("lessThan", $args) )
         {
-            if ( -not ($message) )
+            return $this
+        }
+        if ( -not ( $this.pValue -clt $value2 ) )
+        {
+            if ( [string]::IsNullOrEmpty($message) )
             {
                 $message = $this.pOverrideError
             }
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = "Value `"$($this.value.ToString())`" is not less than value `"$($value2.tostring())`"."
+                $message = 'Value "{0}" is not less than value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
             }
-            if ( -not ($returnOverrideCode) )
-            {
-                $returnOverrideCode = [ERRORS]::INVALID_LESS_THAN
-            }
-            throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_LESS_THAN)
         }
         return $this;
     }
@@ -613,30 +618,30 @@ Class Assert
     #>
     [Assert] lessThanOrEq($value2)
     {
-        return $this.lessThanOrEq($value2, $null, $null)
+        return $this.lessThanOrEq($value2, '', '')
     }
     [Assert] lessThanOrEq($value2, [string] $message)
     {
-        return $this.lessThanOrEq($value2, [string] $message, '')
+        return $this.lessThanOrEq($value2, $message, '')
     }
-    [Assert] lessThanOrEq($value2, $message, [string] $fieldName)
+    [Assert] lessThanOrEq($value2, [string] $message, [string] $fieldName)
     {
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ( $this.value -cle $value2 ) )
+        if ( $this.doAllOrNullOr("lessThanOrEq", $args) )
         {
-            if ( -not ($message) )
+            return $this
+        }
+        if ( -not ( $this.pValue -cle $value2 ) )
+        {
+            if ( [string]::IsNullOrEmpty($message) )
             {
                 $message = $this.pOverrideError
             }
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = "Value `"$($this.value.ToString())`" is not less than or equal to value `"$($value2.tostring())`"."
+                $message = 'Value "{0}" is not less than or equal to value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
             }
-            if ( -not ($returnOverrideCode) )
-            {
-                $returnOverrideCode = [ERRORS]::INVALID_LESS_THAN_OR_EQ
-            }
-            throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_LESS_THAN_OR_EQ)
         }
         return $this;
     }
@@ -662,31 +667,27 @@ Class Assert
     {
         return $this.same($value2,$message,$null)
     }
-    [Assert] same($value2, $message, [string] $fieldName)
+    [Assert] same($value2, [string] $message, [string] $fieldName)
     {
-        $returnOverrideCode = $this.pOverrideCode
-        
-        if ( ($this.value -ceq $value2) `
-        -and ($($this.value).GetType() -eq $Value2.GetType()) )
+        if ( $this.doAllOrNullOr("same", $args) )
         {
             return $this
-            Exit
         }
-
-        if ( -not ($message) )
+        if ( ($this.pValue -ceq $value2) `
+        -and ($($this.pValue).GetType() -eq $Value2.GetType()) )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" is not the same as expected value `"$($value2.tostring())`"."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_SAME
+            $message = 'Value "{0}" is not the same as expected value "{1}".'  -f $this.stringify($this.pValue), $this.stringify($value2)
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_SAME)
     }
 
     <#
@@ -710,28 +711,26 @@ Class Assert
     {
         return $this.notEq($value2,$message,$null)
     }
-    [Assert] notEq($value2, $message, [string] $fieldName)
+    [Assert] notEq($value2, [string] $message, [string] $fieldName)
     {
-        $returnOverrideCode = $this.pOverrideCode
-        if ( $this.value -cne $value2 )
+        if ( $this.doAllOrNullOr("notEq", $args) )
         {
             return $this
-            Exit
         }
-        if ( -not ($message) )
+        if ( $this.pValue -cne $value2 )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" is equal to value `"$($value2.tostring())`"."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_NOT_EQ
+            $message = 'Value "{0}" is equal to value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_NOT_EQ)
     }
 
     <# 
@@ -755,30 +754,27 @@ Class Assert
     {
         return $this.notSame($value2,$message,$null)
     }
-    [Assert] notSame($value2, $message, [string] $fieldName)
+    [Assert] notSame($value2, [string] $message, [string] $fieldName)
     {
-        if ( ($this.value -cne $value2) `
-        -or ($($this.value).GetType() -ne $Value2.GetType()) )
+        if ( $this.doAllOrNullOr("notSame", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        if ( ($this.pValue -cne $value2) `
+        -or ($($this.pValue).GetType() -ne $Value2.GetType()) )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" is the same as expected value `"$($value2.tostring())`"."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_NOT_SAME
+            $message = 'Value "{0}" is the same as expected value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_NOT_SAME)
    }
 
 
@@ -797,37 +793,35 @@ Class Assert
     #>
     [Assert] isJsonString()
     {
-        return $this.isJsonString($null,$null)
+        return $this.isJsonString('', '')
     }
     [Assert] isJsonString($message)
     {
-        return $this.isJsonString($message,$null)
+        return $this.isJsonString($message, '')
     }
-    [Assert] isJsonString($message, [string] $fieldName)
+    [Assert] isJsonString([string] $message, [string] $fieldName)
     {
+        if ( $this.doAllOrNullOr("isJsonString", $args) )
+        {
+            return $this
+        }
         try
         {
-            ConvertFrom-Json $this.value -ErrorAction Stop
+            ConvertFrom-Json $this.pValue -ErrorAction Stop
             return $this
-            Exit
         } 
         catch 
         {
-            $returnOverrideCode = $this.pOverrideCode
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
                 $message = $this.pOverrideError
             }
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = "Value `"$($this.value.ToString())`" is not a valid JSON string."
+                $message = 'Value "{0}" is not a valid JSON string.' -f $this.stringify($this.pValue)
             }
-            if ( -not ($returnOverrideCode) )
-            {
-                $returnOverrideCode = [ERRORS]::INVALID_NOT_SAME
-            }
-    
-            throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_NOT_SAME)
         }
     }
 
@@ -853,29 +847,27 @@ Class Assert
         return $this.string($message,"")
     }
     #end of Overload methods
-    [Assert] string($message, [string] $fieldName)
+    [Assert] string([string] $message, [string] $fieldName)
     {
-        if ( $this.value -is [string] )
+        if ( $this.doAllOrNullOr("string", $args) )
         {
             return $this
-            Exit
+        }
+        if ( $this.pValue -is [string] )
+        {
+            return $this
         }
 
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" expected to be a string, type `"$($($this.value).GetType())`" given."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_STRING
+            $message = 'Value "{0}" expected to be a string, type "{1}" given.' -f $this.stringify($this.pValue), $($this.pValue.GetType())
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_STRING)
     }
 
     <#
@@ -893,36 +885,61 @@ Class Assert
     #>
     [Assert] int() 
     {
-        return $this.int($null,$null)
+        return $this.int('', '')
     } 
     [Assert] int($message) 
     {
-        return $this.int($message,$null)
+        return $this.int($message, '')
     }
     #end of Overload methods
-    [Assert] int($message, [string] $fieldName)
+    [Assert] int([string] $message, [string] $fieldName)
     {
-        if ( $this.value -is [int] )
+        return $this.integer($message, $fieldName)
+    }
+
+    <#
+    .SYNOPSIS
+    Assert that value is an integer
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER propertyPath
+    The property path
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] integer() 
+    {
+        return $this.integer('', '')
+    } 
+    [Assert] integer($message) 
+    {
+        return $this.integer($message, '')
+    }
+    #end of Overload methods
+    [Assert] integer([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("integer", $args) )
         {
             return $this
-            Exit
+        }
+        if ( $this.pValue -is [int] )
+        {
+            return $this
         }
 
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" expected to be an int, type `"$($($this.value).GetType())`" given."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_INTEGER
+            $message = 'Value "{0}" expected to be an int, type "{1}" given.'-f $this.stringify($this.pValue), $($this.pValue.GetType())
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_INTEGER)
     }
 
         <#
@@ -940,36 +957,34 @@ Class Assert
     #>
     [Assert] boolean() 
     {
-        return $this.boolean($null,$null)
+        return $this.boolean('', '')
     } 
     [Assert] boolean($message) 
     {
-        return $this.boolean($message,$null)
+        return $this.boolean($message, '')
     }
     #end of Overload methods
-    [Assert] boolean($message, [string] $fieldName)
+    [Assert] boolean([string] $message, [string] $fieldName)
     {
-        if ( $this.value -is [boolean] )
+        if ( $this.doAllOrNullOr("boolean", $args) )
         {
             return $this
-            Exit
+        }
+        if ( $this.pValue -is [boolean] )
+        {
+            return $this
         }
 
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" expected to be a boolean, type `"$($($this.value).GetType())`" given."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_BOOLEAN
+            $message = "Value `"$($this.pValue.ToString())`" expected to be a boolean, type `"$($($this.pValue).GetType())`" given."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_BOOLEAN)
     }
 
     <#
@@ -987,38 +1002,34 @@ Class Assert
     #>
     [Assert] domainName()
     {
-        return $this.domainName($null,$null)
+        return $this.domainName('', '')
     }
     [Assert] domainName($message)
     {
-        return $this.domainName($message,$null)
+        return $this.domainName($message, '')
     }
-    [Assert] domainName($message, [string] $fieldName)
+    [Assert] domainName([string] $message, [string] $fieldName)
     {
-        $this.string($message, [string] $fieldName)
-        $pattern   = '^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}$';
-        
-        if ( $this.value -match $pattern)
+        if ( $this.doAllOrNullOr("domainName", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        $this.string($message, $fieldName)
+        $pattern   = '^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}$'
+        if ( $this.pValue -match $pattern)
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" was expected to be a valid domain name."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_DOMAIN_NAME
+            $message = "Value `"$($this.pValue.ToString())`" was expected to be a valid domain name."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_DOMAIN_NAME)
     }
 
     <#
@@ -1036,37 +1047,37 @@ Class Assert
     #>
     [Assert] email() 
     {
-        return $this.email($null,$null)
+        return $this.email('', '')
     } 
-    [Assert] email($message) 
+    [Assert] email([string] $message)
     {
-        return $this.email($message,$null)
+        return $this.email($message, '')
     }
     #end of Overload methods
-    [Assert] email ($message, [string] $fieldName)
+    [Assert] email ([string] $message, [string] $fieldName)
     {
+        if ( $this.doAllOrNullOr("email", $args) )
+        {
+            return $this
+        }
         try
         {
-            new-object net.mail.mailaddress($this.value)
+            new-object net.mail.mailaddress($this.pValue)
         } 
         catch
         {
-            $returnOverrideCode = $this.pOverrideCode
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
                 $message = $this.pOverrideError
             }
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = "Value `"$($this.value.ToString())`" was expected to be a valid e-mail address."
-            }
-            if ( -not ($returnOverrideCode) )
-            {
-                $returnOverrideCode = [ERRORS]::INVALID_DOMAIN_NAME
+                $message = "Value `"$($this.pValue.ToString())`" was expected to be a valid e-mail address."
             }
 
-            throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_DOMAIN_NAME)
         }
+
         return $this
     }
 
@@ -1085,47 +1096,40 @@ Class Assert
     #>
     [Assert] userPrincipalName() 
     {
-        return $this.userPrincipalName($null,$null)
+        return $this.userPrincipalName('', '')
     } 
-    [Assert] userPrincipalName($message) 
+    [Assert] userPrincipalName([string] $message) 
     {
-        return $this.userPrincipalName($message,$null)
+        return $this.userPrincipalName($message, '')
     }
     #end of Overload methods
-    [Assert] userPrincipalName ($message, [string] $fieldName)
+    [Assert] userPrincipalName ([string] $message, [string] $fieldName)
     {
+        if ( $this.doAllOrNullOr("userPrincipalName", $args) )
+        {
+            return $this
+        }
         try
         {
-            $this.email($message,$propertyPath)
+            $this.email($message, $fieldName)
         } 
         catch
         {
-            $returnOverrideCode = $this.pOverrideCode
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
                 $message = $this.pOverrideError
             }
-            if ( -not ($message) )
+            if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = "Value `"$($this.value.ToString())`" was expected to be a valid userPrincipalName."
-            }
-            if ( -not ($returnOverrideCode) )
-            {
-                $returnOverrideCode = [ERRORS]::INVALID_
+                $message = "Value `"$($this.pValue.ToString())`" was expected to be a valid userPrincipalName."
             }
 
-            throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_USERPRINCIPALNAME)
         }
         return $this
     }
 
-
-    
-
-
-
-
-   <#
+    <#
     .SYNOPSIS
     Assert that the given string is a valid username (in line with Active directory sAMAccountName)
     .PARAMETER message 
@@ -1140,36 +1144,33 @@ Class Assert
     #>
     [Assert] samAccountName() 
     {
-        return $this.samAccountName($null,$null)
+        return $this.samAccountName('', '')
     } 
-    [Assert] samAccountName($message)
+    [Assert] samAccountName([string] $message)
     {
-        return $this.samAccountName($message,$null)
+        return $this.samAccountName($message, '')
     }
     #end of Overload methods
-    [Assert] samAccountName($message, [string] $fieldName)
+    [Assert] samAccountName([string] $message, [string] $fieldName)
     {
-        if ( $this.value -match '^([a-z0-9]{4,20})$' )
+        if ( $this.doAllOrNullOr("samAccountName", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        if ( $this.pValue -match '^([a-z0-9]{4,20})$' )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" was expected to be a valid samAccountName."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_SAMACCOUNTNAME
+            $message = 'Value "{0}" was expected to be a valid samAccountName.' -f $this.stringify($this.pValue)
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_SAMACCOUNTNAME)
     }
 
     <#
@@ -1187,44 +1188,39 @@ Class Assert
     #>
     [Assert] uuid()
     {
-        return $this.uuid($null,$null)
+        return $this.uuid('', '')
     } 
-    [Assert] uuid($message)
+    [Assert] uuid([string] $message)
     {
-        return $this.uuid($message,$null)
+        return $this.uuid($message, '')
     }
-    [Assert] uuid($message, [string] $fieldName)
+    [Assert] uuid([string] $message, [string] $fieldName)
     {
+        if ( $this.doAllOrNullOr("uuid", $args) )
+        {
+            return $this
+        }
         #remove any braces/punctuation etc.
-        $this.value = $this.value -Replace("[\[\]\{\}\']|\burn:|\buuid:", '')
-        if ( $this.value -eq '00000000-0000-0000-0000-000000000000' ) #nil uuid value
+        $this.pValue = $this.pValue -Replace("[\[\]\{\}\']|\burn:|\buuid:", '')
+        if ( $this.pValue -eq '00000000-0000-0000-0000-000000000000' ) #nil uuid value
         {
             return $this
-            Exit
         }
-        if ( $this.value -match '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' )
+        if ( $this.pValue -match '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" was expected to be a valid uuid."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_UUID
+            $message = "Value `"$($this.pValue.ToString())`" was expected to be a valid uuid."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_UUID)
     }
-
 
    <#
     .SYNOPSIS
@@ -1239,39 +1235,36 @@ Class Assert
     .NOTES
     Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
     #>
-    [Assert] regex($pattern)
+    [Assert] regex([string] $pattern)
     {
         return $this.regex($pattern,$null,$null)
     } 
-    [Assert] regex($pattern,$message)
+    [Assert] regex([string] $pattern,$message)
     {
         return $this.regex($pattern,$message,$null)
     }
     #end of Overload methods
-    [Assert] regex($pattern, $message, [string] $fieldName)
+    [Assert] regex([string] $pattern, [string] $message, [string] $fieldName)
     {
-        $this.string($message, [string] $fieldName);
-        if ( $this.value -match $pattern )
+        if ( $this.doAllOrNullOr("regex", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        $this.string($message, $fieldName)
+        if ( $this.pValue -match $pattern )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" does not match the regex expression provided."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_REGEX
+            $message = "Value `"$($this.pValue.ToString())`" does not match the regex expression provided."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_REGEX)
     }
 
     <#
@@ -1291,33 +1284,30 @@ Class Assert
     {
         return $this.numeric($null, $null)
     }
-    [Assert] numeric($message)
+    [Assert] numeric([string] $message)
     {
         return $this.numeric($message, $null)
     }
-    [Assert] numeric($message, [string] $fieldName)
+    [Assert] numeric([string] $message, [string] $fieldName)
     {
-        if ( $this.value -match '^[\d\.]+$' )
+        if ( $this.doAllOrNullOr("numeric", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        if ( $this.pValue -match '^[\d\.]+$' )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" is not numeric."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_NUMERIC
+            $message = "Value `"$($this.pValue.ToString())`" is not numeric."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_NUMERIC)
     }
 
     <# 
@@ -1341,32 +1331,28 @@ Class Assert
     {
         return $this.range($minValue, $maxValue, [string] $message, '')
     }
-    [Assert] range($minValue, $maxValue, $message, [string] $fieldName)
+    [Assert] range($minValue, $maxValue, [string] $message, [string] $fieldName)
     {
-        $this.numeric($message, [string] $fieldName)
-        
-        if ( ($([convert]::ToDouble($this.value)) -ge $([convert]::ToDouble($minValue)))`
-        -and ($([convert]::ToDouble($this.value)) -le $([convert]::ToDouble($maxValue))) )
+        if ( $this.doAllOrNullOr("range", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        $this.numeric($message, $fieldName)
+        if ( ($([convert]::ToDouble($this.pValue)) -ge $([convert]::ToDouble($minValue)))`
+        -and ($([convert]::ToDouble($this.pValue)) -le $([convert]::ToDouble($maxValue))) )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Number `"$($this.value.ToString())`" was expected to be at least `"$($minValue.ToString())`" and at most `"$($maxValue.ToString())`"."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_RANGE
+            $message = "Number `"$($this.pValue.ToString())`" was expected to be at least `"$($minValue.ToString())`" and at most `"$($maxValue.ToString())`"."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, @{"min"=$minValue;"max"=$maxValue})
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_RANGE, @{"min"=$minValue;"max"=$maxValue})
     }
 
     <#
@@ -1384,60 +1370,69 @@ Class Assert
     #>
     [Assert] nonEmptyInt() 
     {
-        return $this.nonEmptyInt($null,$null)
+        return $this.nonEmptyInt('', '')
     } 
-    [Assert] nonEmptyInt($message)
+    [Assert] nonEmptyInt([string] $message)
     {
-        return $this.nonEmptyInt($message,$null)
+        return $this.nonEmptyInt($message, '')
     }
     #end of Overload methods
-    [Assert] nonEmptyInt($message, [string] $fieldName)
+    [Assert] nonEmptyInt([string] $message, [string] $fieldName)
     {
-        $messageOut = "Value " + $this.value + " expected to be a non-empty value."
-        $propertyPathOut = $this.propertyPath
-        if ($this.value) 
+        if ( $this.doAllOrNullOr("nonEmptyInt", $args) )
         {
-            if ( $this.value -isnot [int] )
-            {
-                $messageOut = "Value " + $this.Value + " expected to be an int, type " + $this.value.GetType().ToString() + " given."
-                $propertyPathOut = $this.propertyPath
-                
-                if ( $message )
-                {
-                    $messageOut = $message
-                }   
-                elseif ( $this.OverrideError )
-                {
-                    $messageOut = $this.OverrideError
-                }
-                if ( $propertyPath )
-                {
-                    $propertyPathOut = $propertyPath 
-                }
-                $this.OverrideCode = [ERRORS]::INVALID_INTEGER
-                throw $this.createException($messageOut,$this.OverrideCode, $propertyPathOut)
-            }
+            return $this
         }
-        else 
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            if ( $message )
-            {
-                $messageOut = $message
-            }   
-            elseif ( $this.OverrideError )
-            {
-                $messageOut = $this.OverrideError
-            }
-            if ( $propertyPath )
-            {
-                $propertyPathOut = $propertyPath 
-            }
-            $this.OverrideCode = $this.VALUE_EMPTY
-            throw $this.createException($messageOut,$this.OverrideCode, $propertyPathOut, $this.pLevel, $null)
+            $message = "Value " + $this.pValue + " is not a non-empty integer."
         }
-        return $this
+
+        return $this.int($message, $fieldName).notEmpty($message, $fieldName)
     }
- 
+
+
+    # /**
+    #  * Assert that value is not empty.
+    #  *
+    #  * @param string $message
+    #  * @param string $fieldName
+    #  * @return Assert
+    #  * @throws AssertionFailedException
+    #  */
+    [Assert] notEmpty() 
+    {
+        return $this.notEmpty('', '')
+    } 
+    [Assert] notEmpty([string] $message)
+    {
+        return $this.notEmpty($message, '')
+    }
+    #end of Overload methods
+    [Assert] notEmpty([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("notEmpty", $args) )
+        {
+            return $this
+        }
+        if ( $([bool]$this.pValue) )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = "Value `"$($this.pValue.ToString())`" is empty, but non empty value was expected."
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::VALUE_EMPTY)
+    }
+
+
+
 
     <#
     .SYNOPSIS
@@ -1463,39 +1458,36 @@ Class Assert
         array() (an empty array)
         $var; (a variable declared, but without a value)
     #>
-    [Assert] notNullOrEmpty(){
-        return $this.notNullOrEmpty($null,$null)
-    } 
-    [Assert] notNullOrEmpty($message)
+    [Assert] notNullOrEmpty()
     {
-        return $this.notNullOrEmpty($message,$null)
+        return $this.notNullOrEmpty('', '')
+    } 
+    [Assert] notNullOrEmpty([string] $message)
+    {
+        return $this.notNullOrEmpty($message, '')
     }
     #end of Overload methods
     #empty is determined by 
-    [Assert] notNullOrEmpty($message, [string] $fieldName)
+    [Assert] notNullOrEmpty([string] $message, [string] $fieldName)
     {
-        if ( (-not ($this.value -like $null)) `
-        -and $([bool]$this.value) )
+        if ( $this.doAllOrNullOr("notNullOrEmpty", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        if ( (-not ($this.pValue -like $null)) -and $([bool]$this.pValue) )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value)`" is null or empty, but non null or empty value was expected."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::VALUE_NULL
+            $message = "Value `"$($this.pValue)`" is null or empty, but non null or empty value was expected."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::VALUE_NULL)
     }
 
     <#
@@ -1511,39 +1503,37 @@ Class Assert
     .NOTES
     Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
     #>
-    [Assert] true(){
-        return $this.true($null,$null)
-    } 
-    [Assert] true($message)
+    [Assert] true()
     {
-        return $this.true($message,$null)
+        return $this.true('', '')
+    } 
+    [Assert] true([string] $message)
+    {
+        return $this.true($message, '')
     }
     #end of Overload methods
-    [Assert] true($message, [string] $fieldName)
+    [Assert] true([string] $message, [string] $fieldName)
     {
-        $this.boolean($message, [string] $fieldName)
-        
-        if ( $this.value -eq $true )
+        if ( $this.doAllOrNullOr("true", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        $this.boolean($message, $fieldName)
+        
+        if ( $this.pValue -eq $true )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" is not TRUE."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_TRUE
+            $message = "Value `"$($this.pValue.ToString())`" is not TRUE."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_TRUE)
     }
 
     <#
@@ -1559,58 +1549,94 @@ Class Assert
     .NOTES
     Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
     #>
-    [Assert] false(){
-        return $this.false($null,$null)
-    } 
-    [Assert] false($message)
+    [Assert] false()
     {
-        return $this.false($message,$null)
+        return $this.false('', '')
+    } 
+    [Assert] false([string] $message)
+    {
+        return $this.false($message, '')
     }
     #end of Overload methods
-    [Assert] false($message, [string] $fieldName)
+    [Assert] false([string] $message, [string] $fieldName)
     {
-        $this.boolean($message, [string] $fieldName)
-        
-        if ( $this.value -eq $false )
+        if ( $this.doAllOrNullOr("false", $args) )
         {
             return $this
-            Exit
         }
-
-        $returnOverrideCode = $this.pOverrideCode
-        if ( -not ($message) )
+        $this.boolean($message, $fieldName)
+        
+        if ( $this.pValue -eq $false )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
-        if ( -not ($message) )
+        if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.value.ToString())`" is not FALSE."
-        }
-        if ( -not ($returnOverrideCode) )
-        {
-            $returnOverrideCode = [ERRORS]::INVALID_FALSE
+            $message = "Value `"$($this.pValue.ToString())`" is not FALSE."
         }
 
-        throw $this.createException($message, $returnOverrideCode, $propertyPath, $this.pLevel, $null)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_FALSE)
     }
 
+    <#
+    .SYNOPSIS
+    Make a string version of a value.
+    .PARAMETER value
+    .NOTES
+    @return string
+    #>
+    Hidden [bool] canBeTraversed()
+    {
+        if ( (-not ($this.pValue -is [array])) -and ((-not($this.pValue -is [System.Collections.IEnumerable])) -or ($this.pValue -is [string])) )
+        {
+            return $false
+        }
+        return $true
+    }
+
+    <#
+    .SYNOPSIS
+    Make a string version of a value.
+    .PARAMETER value
+    .NOTES
+    @return string
+    #>
+    Hidden [string] stringify($value)
+    {
+        if ( $value -eq $null)
+        {
+            return "<NULL>"
+        }
+        if ( $value -is [boolean])
+        {
+            if ($value)
+            {
+                return "<TRUE>"
+            }
+            return "<FALSE>"
+        }
+        if ( $value -is [array])
+        {
+            return "<ARRAY>"
+        }
+        if ( $value -is [PSObject])
+        {
+            return $("<" + $($value.getType()) + ">").ToUpper()
+        }
+        # All other types
+        if ( $value.length -gt 100 )
+        {
+
+            return $($value.toString()).Substring(0, 97) + '...'
+        }
+
+        return $value.toString()
+    }
 
 }
 
-Enum Levels{
-    EMERGENCY                   = 1
-    ALERT                       = 2
-    CRITICAL                    = 3
-    ERROR                       = 4
-    WARNING                     = 5
-    NOTICE                      = 6
-    INFO                        = 7
-    DEBUG                       = 8
-}
-
-
-Enum ERRORS{
-    
-}
-
-Export-ModuleMember -Function * -Cmdlet *
+ Export-ModuleMember -Function * -Cmdlet *

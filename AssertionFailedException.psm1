@@ -35,81 +35,112 @@ TargetSite - Gets the method that throws the current exception.
 Class AssertionFailedException : System.Exception
 {
     # [string]    $ExceptionType  = "AssertionFailedException"
-    hidden $propertyPath   = ''        #can include a full propertypath if you desire but this is generally used for fieldName
-    hidden $code           = $null
-    hidden $value          = $null
-    
-    hidden $constraints    = $null
-    
-    
-    [int]    $level             = $null
-    
-    [int]       $Callingline           = 0
-    [string]    $CallingFile    = ''
-
-
-    #  location details
-    Hidden [string]    $className       = $null
-    Hidden [string]    $methodName      = $null
-    Hidden [string]    $functionName    = $null
-    Hidden [string]    $fieldName       = ''
-
-    static $ERROR_LEVEL_EMERGENCY       = 1
-    static $ERROR_LEVEL_ALERT           = 2
-    static $ERROR_LEVEL_CRITICAL        = 3
-    static $ERROR_LEVEL_ERROR           = 4
-    static $ERROR_LEVEL_WARNING         = 5
-    static $ERROR_LEVEL_NOTICE          = 6
-    static $ERROR_LEVEL_INFO            = 7
-    static $ERROR_LEVEL_DEBUG           = 8
+    # hidden [string]    $message           = ''
+    [int]    $code           = $null
+    [string] $fieldName      = ''
+             $value          = $null
+    [array]  $constraints    = $null
+    [string] $level          = 'critical'
+    [string] $propertyPath   = ''
+    [string] $file           = $null
+    [int]    $line           = ''
 
     AssertionFailedException(
-                            [string]    $Message,
+                            [string]    $message,
                             [int]       $code,
-                            [string]    $propertyPath,
+                            [string]    $fieldName,
                             [object]    $value,
-                            [string]    $level,
                             [string[]]  $constraints,
-                            [string]    $className,
-                            [string]    $methodName,
-                            [string]    $functionName,
-                            [string]    $fieldName
-            ) : base($Message)
+                            [string]    $level,
+                            [string]    $propertyPath,
+                            [string]    $file,
+                            [string]    $line
+                            ) : base($message)
     {
+        # $this.message              = $message
         $this.code              = $code
-        $this.propertyPath      = $propertyPath
+        $this.fieldName         = $fieldName
         $this.value             = $value
-        $this.level             = [Levels] $level
         $this.constraints       = $constraints
-
-        # Execution location details
-        $this.className        = $className
-        $this.methodName       = $methodName
-        $this.functionName     = $functionName
-        $this.fieldName        = $fieldName
+        $this.level             = $level
+        $this.propertyPath      = $propertyPath
+        $this.file              = $file
+        $this.line              = $line
     }
 
-    [string] getPropertyPath()
+        <#
+    .SYNOPSIS
+    Get the error message.
+    .NOTES
+    @return string
+    #>
+    [string] getMessage()
     {
-        return $this.PropertyPath
+        return $this.message
     }
 
+
+    <#
+    .SYNOPSIS
+    Get the field name that was set for the assertion object.
+    .NOTES
+    @return string
+    #>
+    [string] getFieldName()
+    {
+        return $this.fieldName
+    }
+
+    <#
+    .SYNOPSIS
+    Get the value that caused the assertion to fail.
+    .NOTES
+    @return mixed
+    #>
+    [object] getValue()
+    {
+        return $this.value
+    }
+
+    <#
+    .SYNOPSIS
+    Get the constraints that applied to the failed assertion.
+    .NOTES
+    @return array
+    #>
+    [array] getConstraints()
+    {
+        return $this.constraints
+    }
+
+    <#
+    .SYNOPSIS
+    Get the error level.
+    .NOTES
+    @return string
+    #>
+    [int] getLevel()
+    {
+        return $this.level
+    }
+
+    <#
+    .SYNOPSIS
+    User controlled way to define a sub-property causing
+    the failure of a currently asserted objects.
+    Useful to transport information about the nature of the error
+    back to higher layers.
+    .NOTES
+    @return string
+    #>
     [string] getProperty()
     {
         if ( [string]::IsNullOrEmpty($this.PropertyPath) -eq $true )
         {   
             return "General Error"
         }
-        return $this.PropertyPath
-    }
 
-    [string] getMessage()
-    {
-        return ([System.Exception]$this).Message
-    }
-    [string] getSource()
-    {
-        return ([System.Exception]$this).Source
+        return $this.PropertyPath
     }
 
     [int] getCode()
@@ -117,83 +148,32 @@ Class AssertionFailedException : System.Exception
         return $this.code
     }
 
-    [int] getLevel()
+    <#
+    .SYNOPSIS
+    Get the propertyPath, combined with the calling file and line location.
+    .NOTES
+    @return string
+    #>
+    [string] getPropertyPathAndCallingLocation()
     {
-        return $this.level
+        return $this.getPropertyPath() + ' in ' + $this.getCallingFileAndLine()
     }
 
-    # [AssertionFailedException] setCode([int] $code)
-    # {
-    #     $this.code = $code
-
-    #     return $this
-    # }
-
-    
-
-
-
-    # [AssertionFailedException] setPropertyPath([string] $propertyPath)
-    # {
-    #     $this.propertyPath = $propertyPath
-
-    #     return $this
-    # }
-
-    [array] getConstraints()
+    <#
+    .SYNOPSIS
+    Get the calling file and line from where the failing assertion was called.
+    .NOTES
+    @return string
+    #>
+    [string] getCallingFileAndLine()
     {
-        return $this.constraints
+        return $this.file + ':' + $this.line
     }
 
-    [AssertionFailedException] setConstraints([array] $constraints)
-    {
-        $this.constraints = $constraints
-
-        return $this
-    }
-
-    [AssertionFailedException] setLevel([int] $level)
-    {
-        $this.level = [Levels] $level
-
-        return $this
-    }
-
-    [string] getClassName()
-    {
-        return $this.className
-    }
-
-    [string] getMethodName()
-    {
-        return $this.methodName
-    }
-
-    [string] getFunctionName()
-    {
-        return $this.functionName
-    }
-
-    [string] getFieldName()
-    {
-        If ($this.fieldName)
-        {
-            return $this.fieldName
-        }
-        return $this.propertyPath
-    }
-
-    [object] getValue()
-    {
-        return $this.value
-    }
-
+    # serialize the object
     [string] jsonSerialize()
     {
         Return $this | ConvertTo-Json -Compress -Depth 8
     }
-
-
-
 }
 
