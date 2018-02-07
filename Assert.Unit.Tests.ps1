@@ -744,7 +744,7 @@ InModuleScope "Assert"{
             It "Should throw an AssertionFailedException with correct message - non string provided"{
                 {
                     [Assert]::new($value1).string()
-                } | Should throw "Value `"$value1`" expected to be a string, type `"int`" given."
+                } | Should throw "Value `"$value1`" expected to be a string, type `"System.Int32`" given."
             }
         }
         Context ": Provided boolean value"{
@@ -767,7 +767,7 @@ InModuleScope "Assert"{
         }
        
     }
-    Describe "Method: `"int`""{
+    Describe "Method: `"int/integer`""{
         Context ": Provided string value"{
             $value1 = "string"
             It "Should throw an exception"{
@@ -788,7 +788,7 @@ InModuleScope "Assert"{
             It "Should throw an AssertionFailedException with correct message - non int provided"{
                 {
                     [Assert]::new($value1).int()
-                } | Should throw "Value `"$value1`" expected to be an int, type `"string`" given."
+                } | Should throw "Value `"$value1`" expected to be an int, type `"System.String`" given."
             }
         }
         Context ": Provided boolean value"{
@@ -813,7 +813,7 @@ InModuleScope "Assert"{
     }
     Describe "Method: `"boolean`""{
         Context ": Provided string value"{
-            $value1 = "string"
+            $value1 = "true"
             It "Should throw an exception"{
                 {[Assert]::new($value1).boolean()} | Should Throw
             }
@@ -832,7 +832,7 @@ InModuleScope "Assert"{
             It "Should throw an AssertionFailedException with correct message - non boolean provided"{
                 {
                     [Assert]::new($value1).boolean()
-                } | Should throw "Value `"$value1`" expected to be a boolean, type `"string`" given."
+                } | Should throw "Value `"$value1`" expected to be a boolean, type `"System.String`" given."
             }
         }
         Context ": Provided int value"{
@@ -1107,8 +1107,17 @@ InModuleScope "Assert"{
         }
         Context ": Provided string whole number with a space"{
             $value1 = "123456 46"
-            It "Should not throw an exception"{
-                {[Assert]::new($value1).numeric()} | Should not Throw
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).numeric()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
             }
         }
         Context ": Provided string whole number"{

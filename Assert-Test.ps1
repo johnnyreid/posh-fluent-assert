@@ -10,16 +10,16 @@ new-item alias:__FILE__ -value Get-ScriptName | out-null
 
 try
 {
-    $value1 = @("jcitiz","something","stringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstring","blah")
-    [void][Assert]::new($value1).
-            fieldName('username').
-            file($(__FILE__)).
-            line($(__LINE__)).
-            all().
-            samAccountName()
+    # $value1 = @("jcitiz","something","stringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstringstring","blah")
+    # [void][Assert]::new($value1).
+    #         fieldName('username').
+    #         file($(__FILE__)).
+    #         line($(__LINE__)).
+    #         all().
+    #         samAccountName()
 
-    # $value2 = "stringstringstringstringstringstringstringstringstringstring"
-    # [void][Assert]::new($value2).all().file($(__FILE__)).line($(__LINE__)).fieldName("USERNAAEM").samAccountName("your username is invalid.")
+    $value2 = "stringstringstringstringstringstringstringstringstringstring"
+    [void][Assert]::new($value2).all().file($(__FILE__)).line($(__LINE__)).fieldName("USERNAAEM").samAccountName("your username is invalid.")
 }
 catch [AssertionFailedException]
 {

@@ -402,7 +402,7 @@ Class Assert
             return $true
         }
 
-        if ( ($this.pAll -eq $true) -and ($this.canBeTraversed() -eq $true) )
+        if ( ($this.pAll -eq $true) -and (([Assert]::new($this.pValue)).isTraversable()) )
         {
             foreach ( $value in $this.pValue )
             {
@@ -864,7 +864,7 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" expected to be a string, type "{1}" given.' -f $this.stringify($this.pValue), $($this.pValue.GetType())
+            $message = 'Value "{0}" expected to be a string, type "{1}" given.' -f $this.stringify($this.pValue), $($this.pValue).GetType()
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_STRING)
@@ -936,7 +936,7 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" expected to be an int, type "{1}" given.'-f $this.stringify($this.pValue), $($this.pValue.GetType())
+            $message = 'Value "{0}" expected to be an int, type "{1}" given.'-f $this.stringify($this.pValue), $($this.pValue).GetType()
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_INTEGER)
@@ -981,7 +981,7 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = "Value `"$($this.pValue.ToString())`" expected to be a boolean, type `"$($($this.pValue).GetType())`" given."
+            $message = 'Value "{0}" expected to be a boolean, type "{1}" given.' -f $this.stringify($this.pValue), $($this.pValue).GetType()
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_BOOLEAN)
