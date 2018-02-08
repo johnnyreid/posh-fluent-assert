@@ -942,6 +942,52 @@ Class Assert
         throw $this.createException($message, $fieldName, [Assert]::INVALID_INTEGER)
     }
 
+    <#
+    .SYNOPSIS
+    Assert that value is a float
+    .PARAMETER message
+    A message that is added to the Exception if parsing fails
+    .PARAMETER propertyPath
+    The property path
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] float()
+    {
+        return $this.float('', '')
+    }
+    [Assert] float($message)
+    {
+        return $this.float($message, '')
+    }
+    #end of Overload methods
+    [Assert] float([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("float", $args) )
+        {
+            return $this
+        }
+        if ( $this.pValue -is [float] )
+        {
+            return $this
+        }
+
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Value "{0}" expected to be a float, type "{1}" given.'-f $this.stringify($this.pValue), $($this.pValue).GetType()
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_INTEGER)
+    }
+
+
         <#
     .SYNOPSIS
     Assert that value is a boolean
