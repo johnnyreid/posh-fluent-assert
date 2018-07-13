@@ -2,8 +2,8 @@
 using module '.\Assert.psm1'
 using module '.\AssertionFailedException.psm1'
 
-function Get-ScriptLineNumber { return $MyInvocation.ScriptLineNumber }
-function Get-ScriptName { return $MyInvocation.ScriptName }
+function Get-ScriptLineNumber { return [int] $MyInvocation.ScriptLineNumber }
+function Get-ScriptName { return [string] $MyInvocation.ScriptName }
 
 new-item alias:__LINE__ -value Get-ScriptLineNumber | out-null
 new-item alias:__FILE__ -value Get-ScriptName | out-null

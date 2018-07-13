@@ -1,41 +1,38 @@
-
-
-#########################################################################################################################################################
-<#
-.SYNOPSIS
-Error created when assertion fails
-.DESCRIPTION
-Error created when assertion fails
-.PARAMETER Message
-The error message
-.PARAMETER Code
-The error code
-.PARAMETER propertyPath
-The property path
-.PARAMETER value
-The value of the object on which assert was being applied
-.PARAMETER constraints
-An array of string which has constraints
-.PARAMETER level
-The severity of the error. Default is 'critical'
-.EXAMPLE
-TBA
-.NOTES
-System.Exception Properties https://msdn.microsoft.com/en-us/library/system.exception(v=vs.110).aspx
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-Data - Gets a collection of key/value pairs that provide additional user-defined information about the exception.
-HelpLink - Gets or sets a link to the help file associated with this exception.
-HResult	- Gets or sets HRESULT, a coded numerical value that is assigned to a specific exception.
-InnerException	- Gets the Exception instance that caused the current exception.
-Message - Gets a message that describes the current exception.
-Source - Gets or sets the name of the application or the object that causes the error.
-StackTrace - Gets a string representation of the immediate frames on the call stack.
-TargetSite - Gets the method that throws the current exception.
-#>
 Class AssertionFailedException : System.Exception
 {
-    # [string]    $ExceptionType  = "AssertionFailedException"
-    # hidden [string]    $message           = ''
+    #########################################################################################################################################################
+    <#
+    .SYNOPSIS
+    Error created when assertion fails
+    .DESCRIPTION
+    Error created when assertion fails
+    .PARAMETER Message
+    The error message
+    .PARAMETER Code
+    The error code
+    .PARAMETER propertyPath
+    The property path
+    .PARAMETER value
+    The value of the object on which assert was being applied
+    .PARAMETER constraints
+    An array of string which has constraints
+    .PARAMETER level
+    The severity of the error. Default is 'critical'
+    .EXAMPLE
+    TBA
+    .NOTES
+    System.Exception Properties https://msdn.microsoft.com/en-us/library/system.exception(v=vs.110).aspx
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Data - Gets a collection of key/value pairs that provide additional user-defined information about the exception.
+    HelpLink - Gets or sets a link to the help file associated with this exception.
+    HResult	- Gets or sets HRESULT, a coded numerical value that is assigned to a specific exception.
+    InnerException	- Gets the Exception instance that caused the current exception.
+    Message - Gets a message that describes the current exception.
+    Source - Gets or sets the name of the application or the object that causes the error.
+    StackTrace - Gets a string representation of the immediate frames on the call stack.
+    TargetSite - Gets the method that throws the current exception.
+    #>
+
     [int]    $code           = $null
     [string] $fieldName      = ''
              $value          = $null
@@ -57,7 +54,6 @@ Class AssertionFailedException : System.Exception
                             [string]    $line
                             ) : base($message)
     {
-        # $this.message              = $message
         $this.code              = $code
         $this.fieldName         = $fieldName
         $this.value             = $value
@@ -68,7 +64,7 @@ Class AssertionFailedException : System.Exception
         $this.line              = $line
     }
 
-        <#
+    <#
     .SYNOPSIS
     Get the error message.
     .NOTES
@@ -78,7 +74,6 @@ Class AssertionFailedException : System.Exception
     {
         return $this.message
     }
-
 
     <#
     .SYNOPSIS

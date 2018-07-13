@@ -41,11 +41,14 @@ Class Assert
     static $INVALID_KEY_ISSET           = 46
     static $INVALID_SAMACCOUNTNAME      = 47
     static $INVALID_USERPRINCIPALNAME   = 48
+    static $INVALID_BASE64              = 49
     static $INVALID_DIRECTORY           = 101
     static $INVALID_FILE                = 102
     static $INVALID_READABLE            = 103
     static $INVALID_WRITEABLE           = 104
     static $INVALID_CLASS               = 105
+    static $INVALID_UNC_PATH            = 106
+    static $INVALID_DRIVE_LETTER        = 107
     static $INVALID_EMAIL               = 201
     static $INTERFACE_NOT_IMPLEMENTED   = 202
     static $INVALID_URL                 = 203
@@ -73,6 +76,7 @@ Class Assert
     static $INVALID_IP_ADDRESS          = 313
     static $INVALID_AUS_MOBILE          = 314
 
+    #error levels
     static $EMERGENCY                   = 'emergency'
     static $ALERT                       = 'alert'
     static $CRITICAL                    = 'critical'
@@ -94,17 +98,16 @@ Class Assert
 
     Hidden [string] $pPropertyPath       = ''                #can include a full propertypath if you desire but this is generally used for fieldName
 
-    Hidden [string] $pLevel              = 'critical'
+    Hidden [string] $pLevel              = [Assert]::CRITICAL
 
     Hidden [int]    $pOverrideCode       = $null
 
     Hidden [string] $pOverrideError      = ''
 
     # Invocation location details
-    Hidden [string] $pFile               = ''
+    Hidden [string] $pFileName           = ''
 
-    Hidden [int]    $pLine               = $null
-
+    Hidden [int]    $pLineNumber         = $null
 
     #constructor and overloads
     Assert($value)
@@ -161,6 +164,16 @@ Class Assert
     [Assert] reset($value)
     {
         return $this.all($false).nullOr($false).value($value)
+    }
+        <#
+    .NOTES
+    @param mixed $value
+    @param string $fieldName
+    @return Assert
+    #>
+    [Assert] reset($value, [string] $fieldName)
+    {
+        return $this.all($false).nullOr($false).value($value).fieldName($fieldName)
     }
 
     <#
@@ -225,8 +238,8 @@ Class Assert
     A message that is added to the Exception if parsing fails
     .PARAMETER code 
     An error code which will override the default assert error code
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .PARAMETER constraints 
     An array of constraints
     .PARAMETER level 
@@ -253,7 +266,7 @@ Class Assert
             $errFieldName = $this.pFieldName
         }
 
-        return [AssertionFailedException]::new($message, $errcode, $errFieldName, $this.pValue, $constraints, $this.pLevel, $this.pPropertyPath, $this.pFile, $this.pLine)
+        return [AssertionFailedException]::new($message, $errcode, $errFieldName, $this.pValue, $constraints, $this.pLevel, $this.pPropertyPath, $this.pFileName, $this.pLineNumber)
     }
 
     <#
@@ -263,7 +276,7 @@ Class Assert
     #>
     [Assert] code([int] $code)
     {
-        $this.pCode = $code
+        $this.pOverrideCode = $code
 
         return $this
     }
@@ -325,44 +338,93 @@ Class Assert
     }
 
     <#
+    .SYNOPSIS 
+    The name of the calling file (optional)
     .NOTES
     @param string $file
     @return Assert
     #>
-    [Assert] file([string] $file)
+    [Assert] fileName([string] $fileName)
     {
-        $this.pFile = $file
+        $this.pFileName = $fileName
 
         return $this
     }
 
     <#
+    .SYNOPSIS
+    The line number from the calling file (optional)
     .NOTES
     @param int $line
     @return Assert
     #>
-    [Assert] line([int] $line)
+    [Assert] lineNumber([int] $lineNumber)
     {
-        $this.pLine = $line
+        $this.pLineNumber = $lineNumber
 
         return $this
     }
-<#
-     * Assert that value is an array or a traversable object.
-     *
-     * @param string $message
-     * @param string $fieldName
-     * @return Assert
-     * @throws AssertionFailedException
+
+
+    <#
+    .SYNOPSIS
+    Assert that value is an array.
+    .NOTES
+    @param string $message
+    @param string $fieldName
+    @return Assert
+    @throws AssertionFailedException
+    #>
+    [Assert] isArray() 
+    {
+        return $this.isArray("","")
+    } 
+    [Assert] isArray([string] $message) 
+    {
+        return $this.isArray($message,"")
+    }
+    #end of Overload methods
+    [Assert] isArray([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("isArray", $args) )
+        {
+            return $this
+        }
+
+        if ( ($this.pValue -is [array]) -and (-not($this.pValue -is [string])) )
+        {
+            return $this
+        }
+
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Value "{0}" expected to be an array, type "{1}" given.' -f [Assert]::stringify($this.pValue), $($this.pValue).GetType()
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_ARRAY)
+    }
+
+    <#
+    .SYNOPSIS
+    Assert that value is an array or a traversable object.
+    .NOTES
+    @param string $message
+    @param string $fieldName
+    @return Assert
+    @throws AssertionFailedException
      #>
-     [Assert] isTraversable()
-     {
-         return $this.isTraversable('', '')
-     }
-     [Assert] isTraversable([string] $message)
-     {
-         return $this.isTraversable($message, '')
-     }
+    [Assert] isTraversable()
+    {
+        return $this.isTraversable('', '')
+    }
+    [Assert] isTraversable([string] $message)
+    {
+        return $this.isTraversable($message, '')
+    }
     [Assert] isTraversable([string] $message, [string] $fieldName)
     {
         if ( $this.doAllOrNullOr("isTraversable", $args) )
@@ -377,7 +439,7 @@ Class Assert
             }
             if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = 'Value "{0}" is not an array and does not implement Traversable.' -f $this.stringify($this.pValue)
+                $message = 'Value "{0}" is not an array and does not implement Traversable.' -f [Assert]::stringify($this.pValue)
             }
 
             throw $this.createException($message, $fieldName, [Assert]::INVALID_TRAVERSABLE)
@@ -385,11 +447,206 @@ Class Assert
 
         return $this
     }
+
+
+
+    <# 
+    .SYNOPSIS
+    Assert that key exists in the values array.
+    .NOTES
+    @param string|integer $key
+    @param string         $message
+    @param string         $fieldName
+    @return Assert
+    @throws AssertionFailedException
+    #>
+    [Assert] keyExists($key)
+    {
+        return $this.keyExists($key,'', '')
+    }
+    [Assert] keyExists($key, [string] $message)
+    {
+        return $this.keyExists($key, $message, '')
+    }
+    [Assert] keyExists($key, [string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("keyExists", $args) )
+        {
+            return $this
+        }
+        $this.isArray($message, $fieldName)
+
+        if ( -not $this.pValue.Contains($key) )
+        {
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = $this.pOverrideError
+            }
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = 'Array does not contain an element with key "{0}".' -f [Assert]::stringify($key)
+            }
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_KEY_EXISTS)
+        }
+
+        return $this
+    }
+
     <#
-     @param $func
-     @param $args
-     @return bool
-     @throws AssertionFailedException
+    .SYNOPSIS
+    Assert that keys exist in the values array.
+    .NOTES
+    @param array  $keys
+    @param string $message
+    @param string $fieldName
+    @return Assert
+    @throws AssertionFailedException
+    #>
+    [Assert] keysExist([array] $keys)
+    {
+        return $this.keysExist($keys,'', '')
+    }
+    [Assert] keysExist([array] $keys, [string] $message)
+    {
+        return $this.keysExist($keys, $message, '')
+    }
+    [Assert] keysExist([array] $keys, [string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("keyExists", $args) )
+        {
+            return $this
+        }
+        $this.isArray($message, $fieldName)
+
+        Foreach ( $key in $keys )
+        {
+            if ( -not $this.pValue.Contains($key) )
+            {
+                if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = $this.pOverrideError
+            }
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = 'Array does not contain an element with key "{0}".' -f [Assert]::stringify($key)
+            }
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_KEYS_EXIST)
+           }
+        }
+
+        return $this
+    }
+
+
+
+
+    <#
+    .SYNOPSIS
+    Assert that a property (key) exists in the values array.
+    .PARAMETER key
+    The property name to search for
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] propertyExists($key)
+    {
+        return $this.propertyExists($key,'', '')
+    }
+    [Assert] propertyExists($key, [string] $message)
+    {
+        return $this.propertyExists($key, $message, '')
+    }
+    [Assert] propertyExists($key, [string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("propertyExists", $args) )
+        {
+            return $this
+        }
+        $this.isObject($message, $fieldName)
+
+        if ( $this.pValue.Keys ) #checks that the hashtable has keys
+        {
+            if ( $this.pValue.Item($key) )
+            {
+                return $this
+            }
+        }
+         if ( $this.pValue.PSObject.Properties[$key] )
+        {
+            return $this
+        }
+
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Object does not contain a property with key "{0}" given.' -f [Assert]::stringify($key)
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_PROPERTY_EXISTS)
+    }
+
+
+        <#
+    .SYNOPSIS
+    Assert that properties (keys) exist in the values array.
+    .PARAMETER key 
+    The property names to search for
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] propertiesExist([array] $keys)
+    {
+        return $this.propertiesExist($keys,'', '')
+    }
+    [Assert] propertiesExist([array] $keys, [string] $message)
+    {
+        return $this.propertiesExist($keys, $message, '')
+    }
+    [Assert] propertiesExist([array] $keys, [string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("propertiesExist", $args) )
+        {
+            return $this
+        }
+        $this.isObject($message, $fieldName)
+        $this.pOverrideCode = [Assert]::INVALID_PROPERTIES_EXIST
+        Foreach ( $key in $keys )
+        {
+            $this.propertyExists($key, $message, $fieldName)
+        }
+
+        return $this
+    }
+
+    <#
+    .SYNOPSIS
+    Invokes reflection on given method with provided parameters.
+    .PARAMETER methodName
+    The name of the method to reflect
+    .PARAMETER MethodParameters
+    Args that are passed(args)
+    .NOTES
+    @return bool
+    @throws AssertionFailedException
     #>
     hidden [bool] doAllOrNullOr([string] $methodName, $MethodParameters)
     {
@@ -436,8 +693,8 @@ Class Assert
     Assert that two values are equal (using "-ceq" which is case sensitive).
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -468,7 +725,7 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" does not equal expected value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
+            $message = 'Value "{0}" does not equal expected value "{1}".' -f [Assert]::stringify($this.pValue), [Assert]::stringify($value2)
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_EQ)
@@ -479,8 +736,8 @@ Class Assert
     Assert that a value is greater than another
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -509,7 +766,7 @@ Class Assert
             }
             if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = 'Value "{0}" is not greater than value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
+                $message = 'Value "{0}" is not greater than value "{1}".' -f [Assert]::stringify($this.pValue), [Assert]::stringify($value2)
             }
 
             throw $this.createException($message, $fieldName, [Assert]::INVALID_GREATER_THAN)
@@ -522,8 +779,8 @@ Class Assert
     Assert that a value is greater than or equal to another
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -552,7 +809,7 @@ Class Assert
             }
             if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = 'Value "{0}" is not greater than or equal to value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
+                $message = 'Value "{0}" is not greater than or equal to value "{1}".' -f [Assert]::stringify($this.pValue), [Assert]::stringify($value2)
             }
 
             throw $this.createException($message, $fieldName, [Assert]::INVALID_GREATER_THAN_OR_EQ)
@@ -565,8 +822,8 @@ Class Assert
     Assert that a value is less than another
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -595,7 +852,7 @@ Class Assert
             }
             if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = 'Value "{0}" is not less than value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
+                $message = 'Value "{0}" is not less than value "{1}".' -f [Assert]::stringify($this.pValue), [Assert]::stringify($value2)
             }
 
             throw $this.createException($message, $fieldName, [Assert]::INVALID_LESS_THAN)
@@ -608,8 +865,8 @@ Class Assert
     Assert that a value is less than or equal to another
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -638,7 +895,7 @@ Class Assert
             }
             if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = 'Value "{0}" is not less than or equal to value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
+                $message = 'Value "{0}" is not less than or equal to value "{1}".' -f [Assert]::stringify($this.pValue), [Assert]::stringify($value2)
             }
 
             throw $this.createException($message, $fieldName, [Assert]::INVALID_LESS_THAN_OR_EQ)
@@ -651,8 +908,8 @@ Class Assert
     Assert that two values are the same (equal and of the same type)
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -684,7 +941,7 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" is not the same as expected value "{1}".'  -f $this.stringify($this.pValue), $this.stringify($value2)
+            $message = 'Value "{0}" is not the same as expected value "{1}".'  -f [Assert]::stringify($this.pValue), [Assert]::stringify($value2)
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_SAME)
@@ -695,8 +952,8 @@ Class Assert
     Assert that two values are not equal (using -ceq, case sensitive ).
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -727,7 +984,7 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" is equal to value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
+            $message = 'Value "{0}" is equal to value "{1}".' -f [Assert]::stringify($this.pValue), [Assert]::stringify($value2)
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_NOT_EQ)
@@ -738,8 +995,8 @@ Class Assert
     Assert that two values are not the same (equal and of the same type)
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -771,20 +1028,57 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" is the same as expected value "{1}".' -f $this.stringify($this.pValue), $this.stringify($value2)
+            $message = 'Value "{0}" is the same as expected value "{1}".' -f [Assert]::stringify($this.pValue), [Assert]::stringify($value2)
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_NOT_SAME)
    }
 
+   <#    
+    .SYNOPSIS
+    Assert that the given string is a valid numeric id. (non-empty, non-zero, valid integer).
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+   [Assert] id()
+   {
+       return $this.id('', '')
+   }
+   [Assert] id($message)
+   {
+       return $this.id($message, '')
+   }
+   [Assert] id([string] $message, [string] $fieldName)
+   {
+        if ( $this.doAllOrNullOr("id", $args) )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Value "{0}" is not an numeric id.' -f [Assert]::stringify($this.pValue)
+        }
 
-    <#    
+        return $this.notEmpty($message, $fieldName).numeric($message, $fieldName).range(1, [int]::MaxValue, $message, $fieldName)
+   }
+    <#
     .SYNOPSIS
     Assert that the given string is a valid json string.
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -808,6 +1102,7 @@ Class Assert
         try
         {
             ConvertFrom-Json $this.pValue -ErrorAction Stop
+
             return $this
         } 
         catch 
@@ -818,7 +1113,7 @@ Class Assert
             }
             if ( [string]::IsNullOrEmpty($message) )
             {
-                $message = 'Value "{0}" is not a valid JSON string.' -f $this.stringify($this.pValue)
+                $message = 'Value "{0}" is not a valid JSON string.' -f [Assert]::stringify($this.pValue)
             }
 
             throw $this.createException($message, $fieldName, [Assert]::INVALID_NOT_SAME)
@@ -830,8 +1125,60 @@ Class Assert
     Assert that value is a string
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] base64() 
+    {
+        return $this.base64("","")
+    } 
+    [Assert] base64($message) 
+    {
+        return $this.base64($message,"")
+    }
+    #end of Overload methods
+    [Assert] base64([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("base64", $args) )
+        {
+            return $this
+        }
+        try
+        {
+            # // If no exception is caught, then it is possibly a base64 encoded string
+            [byte[]] $data = [System.Convert]::FromBase64String($this.pValue)
+            # // The part that checks if the string was properly padded to the correct length
+            $str = ($this.pValue.Replace(" ","").Length % 4 -eq 0)
+
+            return $this
+        }
+        catch
+        {
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = $this.pOverrideError
+            }
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = 'Value "{0}" expected to be a base64, type "{1}" given.' -f [Assert]::stringify($this.pValue), $($this.pValue).GetType()
+            }
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_BASE64)
+        }
+    }
+
+    <#
+    .SYNOPSIS
+    Assert that value is a string
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -857,14 +1204,13 @@ Class Assert
         {
             return $this
         }
-
         if ( [string]::IsNullOrEmpty($message) )
         {
             $message = $this.pOverrideError
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" expected to be a string, type "{1}" given.' -f $this.stringify($this.pValue), $($this.pValue).GetType()
+            $message = 'Value "{0}" expected to be a string, type "{1}" given.' -f [Assert]::stringify($this.pValue), $($this.pValue).GetType()
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_STRING)
@@ -875,8 +1221,8 @@ Class Assert
     Assert that value is an integer
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -899,12 +1245,13 @@ Class Assert
 
     <#
     .SYNOPSIS
-    Assert that value is an integer
+    Find whether the type of a variable is integer
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
+    To test if a variable is a number or a numeric string you must use numeric()
     @return Assert
     @throws AssertionFailedException
     .NOTES
@@ -936,10 +1283,55 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" expected to be an int, type "{1}" given.'-f $this.stringify($this.pValue), $($this.pValue).GetType()
+            $message = 'Value "{0}" expected to be an int, type "{1}" given.'-f [Assert]::stringify($this.pValue), $($this.pValue).GetType()
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_INTEGER)
+    }
+
+        <#
+    .SYNOPSIS
+    Assert that value is an array
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] array() 
+    {
+        return $this.array('', '')
+    } 
+    [Assert] array($message) 
+    {
+        return $this.array($message, '')
+    }
+    #end of Overload methods
+    [Assert] array([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("array", $args) )
+        {
+            return $this
+        }
+        if ( $this.pValue -is [array] )
+        {
+            return $this
+        }
+
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Value "{0}" expected to be an array, type "{1}" given.'-f [Assert]::stringify($this.pValue), $($this.pValue).GetType()
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_ARRAY)
     }
 
     <#
@@ -947,8 +1339,8 @@ Class Assert
     Assert that value is a float
     .PARAMETER message
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -981,11 +1373,69 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" expected to be a float, type "{1}" given.'-f $this.stringify($this.pValue), $($this.pValue).GetType()
+            $message = 'Value "{0}" expected to be a float, type "{1}" given.'-f [Assert]::stringify($this.pValue), $($this.pValue).GetType()
         }
 
-        throw $this.createException($message, $fieldName, [Assert]::INVALID_INTEGER)
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_FLOAT)
     }
+
+
+
+    <#
+    .SYNOPSIS
+    Assert that value is a integer'ish.
+    .PARAMETER message
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] integerish()
+    {
+        return $this.integerish('', '')
+    }
+    [Assert] integerish($message)
+    {
+        return $this.integerish($message, '')
+    }
+    #end of Overload methods
+    [Assert] integerish([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("integerish", $args) )
+        {
+            return $this
+        }
+        # if ( is_object($this->value) || strval(intval($this->value)) != $this->value || is_bool($this->value) || is_null($this->value) )
+        try
+        {
+            if ( $this.pValue -is [int] -or ([int]$this.pValue -like $this.pValue))
+            {
+                return $this
+            }
+        } 
+        catch
+        {
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = $this.pOverrideError
+            }
+            if ( [string]::IsNullOrEmpty($message) )
+            {
+                $message = 'Value "{0}" is not an integer or a number castable to integer.'-f [Assert]::stringify($this.pValue)
+            }
+
+            throw $this.createException($message, $fieldName, [Assert]::INVALID_INTEGERISH)
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_INTEGERISH)
+    }
+
+
+
 
 
         <#
@@ -993,8 +1443,8 @@ Class Assert
     Assert that value is a boolean
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1027,7 +1477,7 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" expected to be a boolean, type "{1}" given.' -f $this.stringify($this.pValue), $($this.pValue).GetType()
+            $message = 'Value "{0}" expected to be a boolean, type "{1}" given.' -f [Assert]::stringify($this.pValue), $($this.pValue).GetType()
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_BOOLEAN)
@@ -1038,8 +1488,8 @@ Class Assert
     Assert that value is domain name.
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1083,8 +1533,8 @@ Class Assert
     Assert that value is an email adress
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1132,8 +1582,8 @@ Class Assert
     Assert that value is an email adress
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1180,8 +1630,8 @@ Class Assert
     Assert that the given string is a valid username (in line with Active directory sAMAccountName)
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1213,7 +1663,7 @@ Class Assert
         }
         if ( [string]::IsNullOrEmpty($message) )
         {
-            $message = 'Value "{0}" was expected to be a valid samAccountName.' -f $this.stringify($this.pValue)
+            $message = 'Value "{0}" was expected to be a valid samAccountName.' -f [Assert]::stringify($this.pValue)
         }
 
         throw $this.createException($message, $fieldName, [Assert]::INVALID_SAMACCOUNTNAME)
@@ -1224,8 +1674,8 @@ Class Assert
     Assert that value is a valid uuid/guid
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1268,13 +1718,103 @@ Class Assert
         throw $this.createException($message, $fieldName, [Assert]::INVALID_UUID)
     }
 
+    <#
+    .SYNOPSIS
+    Assert that value is a valid UNC path (e.g. \\someserver\somelocation)
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] unc()
+    {
+        return $this.unc('', '')
+    } 
+    [Assert] unc([string] $message)
+    {
+        return $this.unc($message, '')
+    }
+    [Assert] unc([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("unc", $args) )
+        {
+            return $this
+        }
+        if ( $this.pValue -match '^\\\\[a-zA-Z0-9\.\-_]{1,}(\\[a-zA-Z0-9\-_]{1,}){1,}[\$]{0,1}' )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = "Value `"$($this.pValue.ToString())`" was expected to be a valid unc path."
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_UNC_PATH)
+    }
+
+    <#
+    .SYNOPSIS
+    Assert that value is a valid drive letter (e.g. 'H:')
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] driveLetter()
+    {
+        return $this.driveLetter('', '')
+    } 
+    [Assert] driveLetter([string] $message)
+    {
+        return $this.driveLetter($message, '')
+    }
+    [Assert] driveLetter([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("driveLetter", $args) )
+        {
+            return $this
+        }
+        if ( $this.pValue -match '^[a-zA-Z]:$' )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = "Value `"$($this.pValue.ToString())`" was expected to be a valid drive letter."
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_DRIVE_LETTER)
+    }
+
+
+
+
+
    <#
     .SYNOPSIS
     Assert that value matches a regex
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1315,11 +1855,11 @@ Class Assert
 
     <#
    .SYNOPSIS
-    Assert that value is numeric.
+    Assert that value is numeric. Includes decimal places.
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1356,13 +1896,120 @@ Class Assert
         throw $this.createException($message, $fieldName, [Assert]::INVALID_NUMERIC)
     }
 
+    <#
+   .SYNOPSIS
+    Assert that value is a non-empty array.
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] nonEmptyArray()
+    {
+        return $this.nonEmptyArray($null, $null)
+    }
+    [Assert] nonEmptyArray([string] $message)
+    {
+        return $this.nonEmptyArray($message, "")
+    }
+    [Assert] nonEmptyArray([string] $message, [string] $fieldName)
+    {
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Value "{0}" is not a non-empty array.' -f [Assert]::stringify($this.pValue)
+        }
+
+        return $this.isArray($message, $fieldName).notEmpty($message, $fieldName);
+    }
+
+    <#
+    .SYNOPSIS
+    Assert that value is a non-empty integer
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] nonEmptyInt() 
+    {
+        return $this.nonEmptyInt('', '')
+    } 
+    [Assert] nonEmptyInt([string] $message)
+    {
+        return $this.nonEmptyInt($message, '')
+    }
+    #end of Overload methods
+    [Assert] nonEmptyInt([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("nonEmptyInt", $args) )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Value "{0}" is not a non-empty int.' -f [Assert]::stringify($this.pValue)
+        }
+
+        return $this.int($message, $fieldName).notEmpty($message, $fieldName)
+    }
+
+    <#
+    .SYNOPSIS
+    Assert that value is a non-empty string.
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] nonEmptyString() 
+    {
+        return $this.nonEmptyString('', '')
+    } 
+    [Assert] nonEmptyString([string] $message)
+    {
+        return $this.nonEmptyString($message, '')
+    }
+    #end of Overload methods
+    [Assert] nonEmptyString([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("nonEmptyString", $args) )
+        {
+            return $this
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Value "{0}" is not a non-empty string.' -f [Assert]::stringify($this.pValue)
+        }
+
+        return $this.string($message, $fieldName).notEmpty($message, $fieldName)
+    }
+
     <# 
     .SYNOPSIS
     Assert that value is in range of numbers.
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1403,49 +2050,17 @@ Class Assert
 
     <#
     .SYNOPSIS
-    Assert that value is a non-empty integer
+    Assert that value is not empty.
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
     .NOTES
     Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
     #>
-    [Assert] nonEmptyInt() 
-    {
-        return $this.nonEmptyInt('', '')
-    } 
-    [Assert] nonEmptyInt([string] $message)
-    {
-        return $this.nonEmptyInt($message, '')
-    }
-    #end of Overload methods
-    [Assert] nonEmptyInt([string] $message, [string] $fieldName)
-    {
-        if ( $this.doAllOrNullOr("nonEmptyInt", $args) )
-        {
-            return $this
-        }
-        if ( [string]::IsNullOrEmpty($message) )
-        {
-            $message = "Value " + $this.pValue + " is not a non-empty integer."
-        }
-
-        return $this.int($message, $fieldName).notEmpty($message, $fieldName)
-    }
-
-
-    # /**
-    #  * Assert that value is not empty.
-    #  *
-    #  * @param string $message
-    #  * @param string $fieldName
-    #  * @return Assert
-    #  * @throws AssertionFailedException
-    #  */
     [Assert] notEmpty() 
     {
         return $this.notEmpty('', '')
@@ -1477,16 +2092,13 @@ Class Assert
         throw $this.createException($message, $fieldName, [Assert]::VALUE_EMPTY)
     }
 
-
-
-
     <#
     .SYNOPSIS
     Assert that value is not null
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1513,7 +2125,6 @@ Class Assert
         return $this.notNullOrEmpty($message, '')
     }
     #end of Overload methods
-    #empty is determined by 
     [Assert] notNullOrEmpty([string] $message, [string] $fieldName)
     {
         if ( $this.doAllOrNullOr("notNullOrEmpty", $args) )
@@ -1541,8 +2152,8 @@ Class Assert
     Assert that the value is boolean True.
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1587,8 +2198,8 @@ Class Assert
     Assert that the value is boolean False.
     .PARAMETER message 
     A message that is added to the Exception if parsing fails
-    .PARAMETER propertyPath
-    The property path
+    .PARAMETER fieldName
+    The field name
     .NOTES
     @return Assert
     @throws AssertionFailedException
@@ -1646,12 +2257,58 @@ Class Assert
 
     <#
     .SYNOPSIS
+    Assert that value is an object. Objects are have IsValueType eq false, also strings are excluded.
+    .PARAMETER message 
+    A message that is added to the Exception if parsing fails
+    .PARAMETER fieldName
+    The field name
+    .NOTES
+    @return Assert
+    @throws AssertionFailedException
+    .NOTES
+    Overload methods because "A param block is not allowed in a class method" and we cannot use optional parameters in functions.
+    #>
+    [Assert] isObject() 
+    {
+        return $this.isObject("","")
+    } 
+    [Assert] isObject([string] $message) 
+    {
+        return $this.isObject($message,"")
+    }
+    #end of Overload methods
+    [Assert] isObject([string] $message, [string] $fieldName)
+    {
+        if ( $this.doAllOrNullOr("isObject", $args) )
+        {
+            return $this
+        }
+
+        if ( ($this.pValue.GetType().IsValueType -eq $false) -and (-not($this.pValue -is [string])) )
+        {
+            return $this
+        }
+
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = $this.pOverrideError
+        }
+        if ( [string]::IsNullOrEmpty($message) )
+        {
+            $message = 'Value "{0}" expected to be an object, type "{1}" given.' -f [Assert]::stringify($this.pValue), $($this.pValue).GetType()
+        }
+
+        throw $this.createException($message, $fieldName, [Assert]::INVALID_OBJECT)
+    }
+
+    <#
+    .SYNOPSIS
     Make a string version of a value.
     .PARAMETER value
     .NOTES
     @return string
     #>
-    Hidden [string] stringify($value)
+    static [string] stringify($value)
     {
         if ( $value -eq $null)
         {

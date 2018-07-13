@@ -1,7 +1,538 @@
+#To test, run invoke-pester from the module directory
 # using module '..\Modules\Assert\Assert.psm1'
+
+
+# cd D:\inetpub\ad-transact-rpc-api\scripts\Modules\posh-fluent-assert
+# D:\inetpub\ad-transact-rpc-api\scripts\Modules\posh-fluent-assert> invoke-pester
+
 Import-Module ".\Assert.psd1" -Force
 
 InModuleScope "Assert"{
+    Describe "Method: `"propertyExists`""{
+        Context ": Provided int (non-object)"{
+            $value = 64
+            $key = "this is the key"
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertyExists($key)} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value).propertyExists($key)
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non object provided"{
+                {
+                    [Assert]::new($value).propertyExists($key)
+                } | Should throw "Value `"$value`" expected to be an object, type `"System.Int32`" given."
+            }
+            It "Should throw an AssertionFailedException with correct message - property does not exist"{
+                {
+                    $value = @("string1","string2")
+
+                    [Assert]::new($value).propertyExists($key)
+                } | Should throw "Object does not contain a property with key `"$key`""
+            }
+        }
+        Context ": Provided array with key present in value, not property name"{
+            $value = @("string1","string2")
+            $key = "string2"
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertyExists($key)} | Should Throw
+            }
+        }
+        Context ": Provided hashtable object without property name present"{
+            $value = @{
+                key1 = "key1"
+                key2 = "item2"
+            }
+            $key = "key3"
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertyExists($key)} | Should Throw
+            }
+        }
+        Context ": Provided hashtable object with property name present"{
+            $value = @{
+                key1 = "key1"
+                key2 = "item2"
+            }
+            $key = "key2"
+            It "Should not throw an exception"{
+                {[Assert]::new($value).propertyExists($key)} | Should not Throw
+            }
+        }
+        Context ": Provided PSCustomObject without property name present"{
+            $value = [PSCustomObject]@{
+                Path = "Pathname"
+                Owner = "John Citizen"
+                }#EndPSCustomObject
+            $key = "Pathname"
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertyExists($key)} | Should Throw
+            }
+        }
+        Context ": Provided PSCustomObject with property name present"{
+            $value = [PSCustomObject]@{
+                Path = "Pathname"
+                Owner = "John Citizen"
+                }#EndPSCustomObject
+            $key = "Path"
+            It "Should not throw an exception"{
+                {[Assert]::new($value).propertyExists($key)} | Should not Throw
+            }
+        }
+     }
+
+     Describe "Method: `"propertiesExist`""{
+        Context ": Provided int (non-object)"{
+            $value = 64
+            $keys = "this is the key"
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertiesExist($keys)} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value).propertiesExist($keys)
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non object provided"{
+                {
+                    [Assert]::new($value).propertiesExist($keys)
+                } | Should throw "Value `"$value`" expected to be an object, type `"System.Int32`" given."
+            }
+        }
+        Context ": Provided string for key instead of array, but it matches"{
+            It "Should throw an AssertionFailedException with correct message - no properties exist"{
+                {
+                    $value = @("string1","string2")
+                    $keys = @("this is the key")
+                    [Assert]::new($value).propertiesExist($keys)
+                } | Should throw "Object does not contain a property with key `"this is the key`""
+            }
+        }
+        Context ": Provided array with key present in value, not property name"{
+            $value = @("string1","string2")
+            $keys = @("string2")
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertiesExist($keys)} | Should Throw
+            }
+        }
+        Context ": Provided hashtable object without property name present"{
+            $value = @{
+                key1 = "key1"
+                key2 = "item2"
+            }
+            $keys = @("key3")
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertiesExist($keys)} | Should Throw
+            }
+        }
+        Context ": Provided hashtable object with property names present"{
+            $value = @{
+                key1 = "key1"
+                key2 = "item2"
+            }
+            $keys = @("key2","key2")
+            It "Should not throw an exception"{
+                {[Assert]::new($value).propertiesExist($keys)} | Should not Throw
+            }
+        }
+        Context ": Provided PSCustomObject without property name present"{
+            $value = [PSCustomObject]@{
+                Path = "Pathname"
+                Owner = "John Citizen"
+                }#EndPSCustomObject
+            $keys = @("Pathname")
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertiesExist($keys)} | Should Throw
+            }
+        }
+        Context ": Provided PSCustomObject with property name present"{
+            $value = [PSCustomObject]@{
+                Path = "Pathname"
+                Owner = "John Citizen"
+                }#EndPSCustomObject
+            $keys = @("Path","Owner")
+            It "Should not throw an exception"{
+                {[Assert]::new($value).propertiesExist($keys)} | Should not Throw
+            }
+        }
+        Context ": Provided PSCustomObject without ALL property names present"{
+            $value = [PSCustomObject]@{
+                Path = "Pathname"
+                Owner = "John Citizen"
+                }#EndPSCustomObject
+            $keys = @("Path","Folder")
+            It "Should throw an exception"{
+                {[Assert]::new($value).propertiesExist($keys)} | Should Throw
+            }
+        }
+     }
+    
+    
+    
+     Describe "Method: `"keyExists`""{
+        Context ": Provided int (non-array)"{
+            $value = 64
+            $key = "this is the key"
+            It "Should throw an exception"{
+                {[Assert]::new($value).keyExists($key)} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value).keyExists($key)
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non array provided"{
+                {
+                    [Assert]::new($value).keyExists($key)
+                } | Should throw "Value `"$value`" expected to be an array, type `"System.Int32`" given."
+            }
+            It "Should throw an AssertionFailedException with correct message - key does not exist"{
+                {
+                    $value = @("string1","string2")
+
+                    [Assert]::new($value).keyExists($key)
+                } | Should throw "Array does not contain an element with key `"$key`""
+            }
+        }
+      
+        Context ": Provided array with key present"{
+            $value = @("string1","string2")
+            $key = "string2"
+            It "Should not throw an exception"{
+                {[Assert]::new($value).keyExists($key)} | Should not Throw
+            }
+        }
+    }
+    Describe "Method: `"keysExist`""{
+        Context ": Provided int (non-array)"{
+            $value = 64
+            $keys = @("this is the key")
+            It "Should throw an exception"{
+                {[Assert]::new($value).keysExist($keys)} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value).keysExist($keys)
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non array provided"{
+                {
+                    [Assert]::new($value).keysExist($keys)
+                } | Should throw "Value `"$value`" expected to be an array, type `"System.Int32`" given."
+            }
+            It "Should throw an AssertionFailedException with correct message - key does not exist"{
+                {
+                    $value = @("string1","string2")
+
+                    [Assert]::new($value).keysExist($keys)
+                } | Should throw "Array does not contain an element with key `"this is the key`""
+            }
+        }
+        Context ": Provided array with not all keys present"{
+            $value = @("string1","string2","string3","string4")
+            $keys = @("string2","string5")
+            It "Should throw an exception"{
+                {[Assert]::new($value).keysExist($keys)} | Should Throw
+            }
+        }
+        Context ": Provided array with all keys present"{
+            $value = @("string1","string2","string3","string4")
+            $keys = @("string2","string4")
+            It "Should not throw an exception"{
+                {[Assert]::new($value).keysExist($keys)} | Should not Throw
+            }
+        }
+    }
+    Describe "Method: `"isObject`""{
+        Context ": Provided integer value"{
+            $value1 = 1
+            It "Should throw an exception"{
+                {[Assert]::new($value1).isObject()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).isObject()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non array provided"{
+                {
+                    [Assert]::new($value1).isObject()
+                } | Should throw "Value `"$value1`" expected to be an object, type `"System.Int32`" given."
+            }
+        }
+        Context ": Provided boolean value"{
+            $value1 = $true
+            It "Should throw an exception"{
+                {[Assert]::new($value1).isObject()} | Should Throw
+            }
+        }
+        Context ": Provided string value"{
+            $value1 = "hello"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).isObject()} | Should  Throw
+            }
+        }
+        Context ": Provided array object"{
+            $value1 = @("item1","item2")
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).isObject()} | Should not Throw
+            }
+        }
+        Context ": Provided hashtable object"{
+            $value1 = @{
+                key1 = "key1"
+                key2 = "item2"
+            }
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).isObject()} | Should not Throw
+            }
+        }
+    }
+
+
+
+    Describe "Method: `"base64`""{
+        Context ": Provided int"{
+            $value1 = 64
+            $value2 = "this is not a base64 string"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).base64()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).base64()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non string provided"{
+                {
+                    [Assert]::new($value1).base64()
+                } | Should throw "Value `"$value1`" expected to be a base64, type `"System.Int32`" given."
+            }
+            It "Should throw an AssertionFailedException with correct message - non base64 string provided"{
+                {
+                    [Assert]::new($value2).base64()
+                } | Should throw "Value `"$value2`" expected to be a base64, type `"System.String`" given."
+            }
+        }
+        Context ": Provided int value"{
+            $value1 = 1
+            It "Should throw an exception"{
+                {[Assert]::new($value1).base64()} | Should Throw
+            }
+        }
+        Context ": Provided boolean value"{
+            $value1 = $true
+            It "Should throw an exception"{
+                {[Assert]::new($value1).base64()} | Should Throw
+            }
+        }
+        Context ": Provided object"{
+            $value1 = @("item1","item2")
+            It "Should throw an exception"{
+                {[Assert]::new($value1).base64()} | Should Throw
+            }
+        }
+        Context ": Provided string value"{
+            $value1 = "hello"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).base64()} | Should Throw
+            }
+        }
+        Context ": Provided base64string value"{
+            $value1 = "aGVsbG90aGlzaXNiYXNlNjQ="
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).base64()} | Should not Throw
+            }
+        }
+    }
+
+    Describe "Method: `"nonEmptyString`""{
+        Context ": Provided empty string value"{
+            $value1 = ""
+            It "Should throw an exception"{
+                {[Assert]::new($value1).nonEmptyString()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).nonEmptyString()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non array provided"{
+                {
+                    [Assert]::new($value1).nonEmptyString()
+                } | Should throw "Value `"$value1`" is not a non-empty string."
+            }
+        }
+        Context ": Provided int value"{
+            $value1 = 1
+            It "Should throw an exception"{
+                {[Assert]::new($value1).nonEmptyString()} | Should Throw
+            }
+        }
+        Context ": Provided boolean value"{
+            $value1 = $true
+            It "Should throw an exception"{
+                {[Assert]::new($value1).nonEmptyString()} | Should Throw
+            }
+        }
+        Context ": Provided object"{
+            $value1 = @("item1","item2")
+            It "Should throw an exception"{
+                {[Assert]::new($value1).nonEmptyString()} | Should Throw
+            }
+        }
+        Context ": Provided string value"{
+            $value1 = "hello"
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).nonEmptyString()} | Should Not Throw
+            }
+        }
+    }
+
+    Describe "Method: `"nonEmptyInt`""{
+        Context ": Provided empty int value"{
+            $value1 = 
+            It "Should throw an exception"{
+                {[Assert]::new($value1).nonEmptyInt()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).nonEmptyInt()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non array provided"{
+                {
+                    [Assert]::new($value1).nonEmptyInt()
+                } | Should throw "Value `"<NULL>`" is not a non-empty int."
+            }
+        }
+        Context ": Provided boolean value"{
+            $value1 = $true
+            It "Should throw an exception"{
+                {[Assert]::new($value1).nonEmptyInt()} | Should Throw
+            }
+        }
+        Context ": Provided object"{
+            $value1 = @("item1","item2")
+            It "Should throw an exception"{
+                {[Assert]::new($value1).nonEmptyInt()} | Should Throw
+            }
+        }
+        Context ": Provided integer value as a string (non int type)"{
+            $value1 = "1"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).nonEmptyInt()} | Should Throw
+            }
+        }
+        Context ": Provided int value"{
+            $value1 = 1
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).nonEmptyInt()} | Should Not Throw
+            }
+        }
+    }
+
+    Describe "Method: `"isArray`""{
+        Context ": Provided integer value"{
+            $value1 = 1
+            It "Should throw an exception"{
+                {[Assert]::new($value1).isArray()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).isArray()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non array provided"{
+                {
+                    [Assert]::new($value1).isArray()
+                } | Should throw "Value `"$value1`" expected to be an array, type `"System.Int32`" given."
+            }
+        }
+        Context ": Provided boolean value"{
+            $value1 = $true
+            It "Should throw an exception"{
+                {[Assert]::new($value1).isArray()} | Should Throw
+            }
+        }
+        Context ": Provided string value"{
+            $value1 = "hello"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).isArray()} | Should  Throw
+            }
+        }
+        Context ": Provided object"{
+            $value1 = @("item1","item2")
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).isArray()} | Should not Throw
+            }
+        }
+    }
+
     Describe "Method: `"eq`""{
         Context ": Different integer values"{
             $value1 = 1
@@ -811,6 +1342,60 @@ InModuleScope "Assert"{
         }
        
     }
+
+    Describe "Method: `"integerish`""{
+        Context ": Provided string value"{
+            $value1 = "string"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).integerish()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).integerish()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - non int provided"{
+                {
+                    [Assert]::new($value1).integerish()
+                } | Should throw "Value `"$value1`" is not an integer or a number castable to integer."
+            }
+        }
+        Context ": Provided boolean value"{
+            $value1 = $true
+            It "Should throw an exception"{
+                {[Assert]::new($value1).integerish()} | Should Throw
+            }
+        }
+        Context ": Provided object"{
+            $value1 = @("item1","item2")
+            It "Should throw an exception"{
+                {[Assert]::new($value1).integerish()} | Should Throw
+            }
+        }
+        Context ": Provided int value"{
+            $value1 = 123456
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).integerish()} | Should not Throw
+            }
+        }
+        Context ": Provided a string with an int value"{
+            $value1 = "123456"
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).integerish()} | Should not Throw
+            }
+        }
+       
+    }
+
+
+
     Describe "Method: `"boolean`""{
         Context ": Provided string value"{
             $value1 = "true"
@@ -1033,6 +1618,89 @@ InModuleScope "Assert"{
             }
         }
     }
+
+
+    Describe "Method: `"unc`""{
+        Context ": Provided random string value"{
+            $value1 = "stringstringstringstringstringstringstringstringstringstring"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).unc()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).unc()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - invalid unc"{
+                {
+                    [Assert]::new($value1).unc()
+                } | Should throw "Value `"$value1`" was expected to be a valid unc path."
+            }
+        }
+        Context ": Provided unc with slash on the end"{
+            $value1 = "\\someserver\blah\"
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).unc()} | Should not Throw
+            }
+        }
+        Context ": Provided valid unc"{
+            $value1 = "\\someserver\blah"
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).unc()} | Should not Throw
+            }
+        }
+    }
+    Describe "Method: `"driveLetter`""{
+        Context ": Provided random string value"{
+            $value1 = "stringstringstringstringstringstringstringstringstringstring"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).driveLetter()} | Should Throw
+            }
+            It "Should throw an AssertionFailedException"{
+                {
+                    try
+                    {
+                        [Assert]::new($value1).driveLetter()
+                    }
+                    catch 
+                    {
+                        $_.Exception.GetType().Name | Should Be "AssertionFailedException"
+                    }
+                 } 
+            }
+            It "Should throw an AssertionFailedException with correct message - invalid driveLetter"{
+                {
+                    [Assert]::new($value1).driveLetter()
+                } | Should throw "Value `"$value1`" was expected to be a valid drive letter."
+            }
+        }
+        Context ": Provided drive letter with slash on the end (invalid)"{
+            $value1 = "H:\"
+            It "Should throw an exception"{
+                {[Assert]::new($value1).driveLetter()} | Should  Throw
+            }
+        }
+        Context ": Provided valid drive letter"{
+            $value1 = "H:"
+            It "Should not throw an exception"{
+                {[Assert]::new($value1).driveLetter()} | Should not Throw
+            }
+        }
+       
+    }
+
+
+
+
+
+
     Describe "Method: `"regex`""{
         Context ": Provided string value with non-matching regex"{
             $value1 = "foo"
